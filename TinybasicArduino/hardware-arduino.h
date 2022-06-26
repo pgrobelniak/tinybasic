@@ -86,10 +86,10 @@
 #define ARDUINO_TTGO_T7_V14_Mini32
 #define ARDUINOSPI
 #define ARDUINOVGA
+#define ARDUINOEEPROM
 #define ARDUINOSD
 #define SDPIN   5
 #define STANDALONE 
-
 /* 
 	Predefined hardware configurations, this assumes that all of the 
 	above are undef
@@ -958,8 +958,8 @@ void fcircle(int x0, int y0, int r) { tft.fillCircle(x0, y0, r); }
  * terminal emulation
  */
 #if defined(ARDUINOVGA) && defined(ARDUINO_TTGO_T7_V14_Mini32) 
-static fabgl::VGAController VGAController;
-//fabgl::VGA16Controller VGAController; // 16 color object with less memory 
+//static fabgl::VGAController VGAController;
+fabgl::VGA16Controller VGAController; // 16 color object with less memory 
 static fabgl::Terminal      Terminal;
 static Canvas cv(&VGAController);
 TerminalController tc(&Terminal);
