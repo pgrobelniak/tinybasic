@@ -6178,7 +6178,8 @@ void statement(){
 		}
 /* after each statement we check on a break character 
 		on an Arduino entering "#" at runtime stops the program */
-		if (checkch() == BREAKCHAR) {st=SINT; xc=inch(); return;}; 
+    //disabled to make GET work
+    //if (checkch() == BREAKCHAR) {st=SINT; xc=inch(); return;}; 
 
 /* yield after each statement which is a 30-100 microsecond cycle 
 		ALL backgriund tasks are handled in byield */
