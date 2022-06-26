@@ -964,9 +964,9 @@ static fabgl::Terminal      Terminal;
 static Canvas cv(&VGAController);
 TerminalController tc(&Terminal);
 Color vga_graph_pen = Color::BrightWhite;
-Color vga_graph_brush = Color::Black;
-Color vga_txt_pen = Color::BrightGreen;
-Color vga_txt_background = Color::Black;
+Color vga_graph_brush = Color::Blue;
+Color vga_txt_pen = Color::Yellow;
+Color vga_txt_background = Color::Blue;
 
 /* this starts the vga controller and the terminal right now */
 void vgabegin() {
