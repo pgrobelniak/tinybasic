@@ -80,7 +80,7 @@
 #undef ARDUINOETH
 #undef ARDUINOMQTT
 #undef ARDUINOSENSORS
-#undef ARDUINOSPIRAM
+#undef ARDUINOSPIRAM /* unfinished code, do not use, string handling broken */
 #undef STANDALONE
 
 #define ARDUINO_TTGO_T7_V14_Mini32
@@ -159,7 +159,7 @@
  * 0x050 this is the default lowest adress of standard EEPROMs
  * default for the size is 4096, define your EFS EEPROM size here 
  */
-#define EEPROMI2CADDR 0x057
+#define EEPROMI2CADDR 0x050
 #define RTCI2CADDR 0x068
 #undef EFSEEPROMSIZE
 
@@ -3026,7 +3026,7 @@ address_t spirambegin() {
 }
 
 /* the simple unbuffered byte write, with a cast to signed char */
-void spiramrawwrite(address_t a, signed char c) {
+void spiramrawwrite(address_t a, mem_t c) {
   digitalWrite(RAMPIN, LOW);
   SPI.transfer(SPIRAMWRITE);
   SPI.transfer((byte)(a >> 8));
@@ -3036,8 +3036,8 @@ void spiramrawwrite(address_t a, signed char c) {
 }
 
 /* the simple unbuffered byte read, with a cast to signed char */
-signed char spiramrawread(address_t a) {
-  signed char c;
+mem_t spiramrawread(address_t a) {
+  mem_t c;
   digitalWrite(RAMPIN, LOW);
   SPI.transfer(SPIRAMREAD);
   SPI.transfer((byte)(a >> 8));
@@ -3054,9 +3054,8 @@ signed char spiramrawread(address_t a) {
 #define SPIRAMSBSIZE 128
 signed char spistrbuf1[SPIRAMSBSIZE];
 signed char spistrbuf2[SPIRAMSBSIZE];
-#else
-#undef USEMEMINTERFACE
 #endif
+
 
 // defined HARDWARE_H
 #endif
