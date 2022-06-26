@@ -68,7 +68,7 @@
 #undef LCDSHIELD
 #undef ARDUINOTFT
 #undef ARDUINOVGA
-#define ARDUINOEEPROM
+#undef ARDUINOEEPROM
 #undef ARDUINOEFS
 #undef ARDUINOSD
 #undef ESPSPIFFS
@@ -80,8 +80,15 @@
 #undef ARDUINOETH
 #undef ARDUINOMQTT
 #undef ARDUINOSENSORS
-#define ARDUINOSPIRAM
+#undef ARDUINOSPIRAM
 #undef STANDALONE
+
+#define ARDUINO_TTGO_T7_V14_Mini32
+#define ARDUINOSPI
+#define ARDUINOVGA
+#define ARDUINOSD
+#define SDPIN   5
+#define STANDALONE 
 
 /* 
 	Predefined hardware configurations, this assumes that all of the 
@@ -711,7 +718,8 @@ void spibegin() {
 #ifdef ARDUINOSPI
 #ifdef ARDUINO_TTGO_T7_V14_Mini32
 /* this fixes the wrong board definition in the ESP32 core for this board */
-  SPI.begin(14, 2, 12, 13);
+  //SPI.begin(14, 2, 12, 13);
+  SPI.begin(18, 19, 23, 5);
 #else 
   SPI.begin();
 #endif
@@ -950,8 +958,8 @@ void fcircle(int x0, int y0, int r) { tft.fillCircle(x0, y0, r); }
  * terminal emulation
  */
 #if defined(ARDUINOVGA) && defined(ARDUINO_TTGO_T7_V14_Mini32) 
-//static fabgl::VGAController VGAController;
-fabgl::VGA16Controller VGAController; // 16 color object with less memory 
+static fabgl::VGAController VGAController;
+//fabgl::VGA16Controller VGAController; // 16 color object with less memory 
 static fabgl::Terminal      Terminal;
 static Canvas cv(&VGAController);
 TerminalController tc(&Terminal);
@@ -962,7 +970,7 @@ Color vga_txt_background = Color::Black;
 
 /* this starts the vga controller and the terminal right now */
 void vgabegin() {
-	VGAController.begin(GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_19, GPIO_NUM_18, GPIO_NUM_5, GPIO_NUM_4, GPIO_NUM_23, GPIO_NUM_15);
+	VGAController.begin(GPIO_NUM_22, GPIO_NUM_21,  GPIO_NUM_4, GPIO_NUM_13, GPIO_NUM_15);
 	VGAController.setResolution(VGA_640x200_70Hz);
 	Terminal.begin(&VGAController);
 	Terminal.setBackgroundColor(vga_txt_background);
@@ -1084,7 +1092,7 @@ void kbdbegin() {
 #else
 #ifdef PS2FABLIB
 	PS2Controller.begin(PS2Preset::KeyboardPort0);
-	PS2Controller.keyboard()->setLayout(&fabgl::GermanLayout);
+	//PS2Controller.keyboard()->setLayout(&fabgl::GermanLayout);
 #endif
 #endif
 }
