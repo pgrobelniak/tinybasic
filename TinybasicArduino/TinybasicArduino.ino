@@ -91,7 +91,7 @@
 #define HASAPPLE1
 #define HASARDUINOIO
 #define HASFILEIO
-#define HASTONE
+#undef HASTONE
 #define HASPULSE
 #define HASSTEFANSEXT
 #define HASERRORMSG
@@ -824,7 +824,6 @@ address_t createstring(char c, char d, address_t i) {
 char* getstring(char c, char d, address_t b) {	
 	address_t k;
 
-
 	ax=0;
 	if (DEBUG) { outsc("* get string var "); outch(c); outch(d); outspc(); outnumber(b); outcr(); }
 
@@ -836,11 +835,13 @@ char* getstring(char c, char d, address_t b) {
 #ifdef HASAPPLE1
 /* special strings */
 #if !defined(ARDUINO) || defined(ARDUINORTC)
-	if ( c== '@' && d == 'T') {
+	if ( c == '@' && d == 'T') {
 		rtcmkstr();
 		return rtcstring+b;
 	}
 #endif
+
+	if ( c == '@') { error(EVARIABLE); return 0;}
 
 /* dynamically allocated strings */
 	if (! (ax=bfind(STRINGVAR, c, d)) ) ax=createstring(c, d, STRSIZEDEF);
@@ -2867,6 +2868,12 @@ void streval(){
 	irl=ir2;
 	xl=pop();
 
+/* with the mem interface -> copy, irl now point to buffer2 */ 
+#ifdef USEMEMINTERFACE
+	for(k=0; k<SPIRAMSBSIZE && k<xl; k++) spistrbuf2[k]=irl[k];
+	irl=spistrbuf2;
+#endif
+
 /* get ready for rewind. */
 	if (st != SINT)
 		h1=here; 
@@ -2891,12 +2898,6 @@ void streval(){
 	t=token;
 	nexttoken(); 
 	//debugtoken();
-
-/* with the mem interface -> copy */ 
-#ifdef USEMEMINTERFACE
-	for(k=0; k<SPIRAMSBSIZE; k++) spistrbuf2[k]=irl[k];
-	irl=spistrbuf2;
-#endif
 
 	if (!stringvalue()){
 		error(EUNKNOWN);
@@ -3532,7 +3533,7 @@ void assignnumber(signed char t, char xcl, char ycl, address_t i, address_t j, c
 			if (ps)
 				setstringlength(xcl, ycl, 1);
 			else 
-				if (lenstring(xcl, ycl) < i && i < stringdim(xcl, ycl)) setstringlength(xcl, ycl, i);
+				if (lenstring(xcl, ycl) < i && i <= stringdim(xcl, ycl)) setstringlength(xcl, ycl, i);
 			break;
 #endif
 	}
@@ -4531,25 +4532,30 @@ void xsave() {
 		od=OFILE;
 		
 /* the core save - xlist() not used any more */
+    ert=0; /* reset error to trap file problems */
 		here2=here;
 		here=0;
 		gettoken();
 		while (here < top) {
 			outputtoken();
+      if (ert) break;
 			gettoken();
 			if (token == LINENUMBER) outcr();
 		}
 		if (here == top) outputtoken();
-   	outcr(); 
+   		outcr(); 
    	
 /* back to where we were */
-   	here=here2;
+   		here=here2;
 
 /* restore the output mode */
 		od=pop();
 
 /* clean up */
 		ofileclose();
+
+/* did an accident happen */
+    if (ert) { printmessage(EGENERAL); outcr();  ert=0; }
 	}
 
 /* and continue remembering, where we were */
@@ -5377,7 +5383,6 @@ void xfdisk() {
 #if defined(FILESYSTEMDRIVER)
 	nexttoken();
 	parsearguments();
-	debugtoken();
 	if (er != 0) return;
 	if (args > 1) error(EORANGE);
 	if (args == 0) push(0);

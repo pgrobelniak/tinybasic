@@ -80,7 +80,7 @@
 #undef ARDUINOETH
 #undef ARDUINOMQTT
 #undef ARDUINOSENSORS
-#undef ARDUINOSPIRAM /* unfinished code, do not use, string handling broken */
+#define ARDUINOSPIRAM /* unfinished code, do not use, string handling broken */
 #undef STANDALONE
 
 #define ARDUINO_TTGO_T7_V14_Mini32
@@ -161,7 +161,7 @@
  */
 #define EEPROMI2CADDR 0x050
 #define RTCI2CADDR 0x068
-#undef EFSEEPROMSIZE
+#define EFSEEPROMSIZE 32000
 
 /*
  * Sensor library code - experimental
@@ -2171,7 +2171,9 @@ void filewrite(char c) {
 	if (ofile) fputc(c, ofile); else ert=1;
 #endif
 #if defined(ARDUINOEFS)
-	if (ofile) EFS.fputc(c, ofile); else ert=1;
+	if (ofile) { 
+    if (!EFS.fputc(c, ofile)) ert=-1; 
+  } else ert=1;
 #endif
 }
 
