@@ -231,6 +231,8 @@ typedef unsigned char uint8_t;
 /* Pawel's additions */
 #define TAT -23
 #define TMODE -22
+#define TTERM -21
+#define TCURSOR -20
 /* constants used for some obscure purposes */
 #define TBUFFER -2
 /* UNKNOWN is not used in the current code, the 
@@ -239,7 +241,7 @@ typedef unsigned char uint8_t;
 #define UNKNOWN -1
 
 /* the number of keywords, and the base index of the keywords */
-#define NKEYWORDS	3+19+13+12+11+5+2+7+7+7+12+2
+#define NKEYWORDS	3+19+13+12+11+5+2+7+7+7+12+3
 #define BASEKEYWORD -121
 
 /*
@@ -420,6 +422,8 @@ const char ssleep[]		PROGMEM  = "SLEEP";
 //#ifdef PAWELSEXT
 const char sat[] PROGMEM = "AT";
 const char smode[] PROGMEM = "MODE";
+const char sterm[] PROGMEM = "TERM";
+const char scursor[] PROGMEM = "CURSOR";
 //#endif
 
 /* zero terminated keyword storage */
@@ -478,7 +482,7 @@ const char* const keyword[] PROGMEM = {
 	snetstat, ssensor, swire, ssleep, 
 #endif
 //#ifdef PAWELSEXT
-  sat, smode,
+  sat, smode, sterm, scursor,
 //#endif
 	0
 };
@@ -537,7 +541,7 @@ const signed char tokens[] PROGMEM = {
 	TSENSOR, TWIRE, TSLEEP,
 #endif
 //#ifdef PAWELSEXT
-  TAT, TMODE,
+  TAT, TMODE, TTERM, TCURSOR,
 //#endif
 	0
 };
@@ -858,8 +862,11 @@ void frect(int, int, int, int);
 void circle(int, int, int);
 void fcircle(int, int, int);
 
+/* Pawel's additions */
 void at(int, int);
 void mode(int);
+void term(int);
+void cursor(int);
 
 /* text output to a VGA display */
 void vgabegin();
@@ -1256,6 +1263,9 @@ void xon();
 
 /* Pawel's additions */
 void xat();
+void xmode();
+void xterm();
+void xcursor();
 
 /* the statement loop */
 void statement();

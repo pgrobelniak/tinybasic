@@ -5988,6 +5988,24 @@ void xmode() {
   x0 = pop();
   mode(x0);
 }
+
+void xterm() {
+  short x0;
+  nexttoken();
+  parsenarguments(1);
+  if (er != 0) return;
+  x0 = pop();
+  term(x0);
+}
+
+void xcursor() {
+  short x0;
+  nexttoken();
+  parsenarguments(1);
+  if (er != 0) return;
+  x0 = pop();
+  cursor(x0);
+}
 //#endif
 
 /* 
@@ -6227,6 +6245,12 @@ void statement(){
         break;
       case TMODE:
         xmode();
+        break;
+      case TTERM:
+        xterm();
+        break;
+      case TCURSOR:
+        xcursor();
         break;
 //#endif
 /* and all the rest */
