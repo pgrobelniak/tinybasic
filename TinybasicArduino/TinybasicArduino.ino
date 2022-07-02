@@ -5979,6 +5979,15 @@ void xat() {
   x0 = pop();
   at(x0, y0);
 }
+
+void xmode() {
+  short x0;
+  nexttoken();
+  parsenarguments(1);
+  if (er != 0) return;
+  x0 = pop();
+  mode(x0);
+}
 //#endif
 
 /* 
@@ -6215,6 +6224,9 @@ void statement(){
 //#ifdef PAWELSEXT
       case TAT:
         xat();
+        break;
+      case TMODE:
+        xmode();
         break;
 //#endif
 /* and all the rest */

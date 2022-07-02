@@ -3177,11 +3177,57 @@ signed char spistrbuf2[SPIRAMSBSIZE];
 
 //#ifdef PAWELSEXT
 void at(int x, int y) {
-  Serial.print("at: ");
-  Serial.print(x);
-  Serial.print(", ");
-  Serial.print(y);
   tc.setCursorPos(x, y);
+}
+
+const char * PresetResolutions[] = {
+  VGA_256x384_60Hz,
+  VGA_320x200_60HzD,
+  VGA_320x200_70Hz,
+  VGA_320x200_75Hz,
+  QVGA_320x240_60Hz,
+  VGA_400x300_60Hz,
+  VGA_480x300_75Hz,
+  VGA_512x192_60Hz,
+  VGA_512x384_60Hz,
+  VGA_512x448_60Hz,
+  VGA_512x512_58Hz,
+  VGA_640x200_60HzD,
+  VGA_640x200_70Hz,
+  VGA_640x240_60Hz,
+  VGA_640x350_70Hz,
+  VGA_640x350_70HzAlt1,
+  VESA_640x350_85Hz,
+  VGA_640x382_60Hz,
+  VGA_640x384_60Hz,
+  VGA_640x400_70Hz,
+  VGA_640x400_60Hz,
+  VGA_640x480_60Hz,
+  VGA_640x480_60HzAlt1,
+  VGA_640x480_60HzD,
+  VGA_640x480_73Hz,
+  VESA_640x480_75Hz,
+  VGA_720x348_50HzD,
+  VGA_720x348_73Hz,
+  VGA_720x400_70Hz,
+  VESA_720x400_85Hz,
+  PAL_720x576_50Hz,
+  VESA_768x576_60Hz,
+  SVGA_800x300_60Hz,
+  SVGA_800x600_56Hz,
+  SVGA_800x600_60Hz,
+  SVGA_960x540_60Hz,
+  SVGA_1024x768_60Hz,
+  SVGA_1024x768_70Hz,
+  SVGA_1024x768_75Hz,
+  SVGA_1280x600_60Hz,
+  SVGA_1280x720_60Hz,
+  SVGA_1280x720_60HzAlt1,
+  SVGA_1280x768_50Hz,
+};
+
+void mode(int x) {
+    VGAController.setResolution(PresetResolutions[x % (sizeof(PresetResolutions) / sizeof(const char *))]);
 }
 //#endif
 

@@ -230,6 +230,7 @@ typedef unsigned char uint8_t;
 #define TSLEEP	-24
 /* Pawel's additions */
 #define TAT -23
+#define TMODE -22
 /* constants used for some obscure purposes */
 #define TBUFFER -2
 /* UNKNOWN is not used in the current code, the 
@@ -238,7 +239,7 @@ typedef unsigned char uint8_t;
 #define UNKNOWN -1
 
 /* the number of keywords, and the base index of the keywords */
-#define NKEYWORDS	3+19+13+12+11+5+2+7+7+7+12+1
+#define NKEYWORDS	3+19+13+12+11+5+2+7+7+7+12+2
 #define BASEKEYWORD -121
 
 /*
@@ -418,6 +419,7 @@ const char ssleep[]		PROGMEM  = "SLEEP";
 #endif
 //#ifdef PAWELSEXT
 const char sat[] PROGMEM = "AT";
+const char smode[] PROGMEM = "MODE";
 //#endif
 
 /* zero terminated keyword storage */
@@ -476,7 +478,7 @@ const char* const keyword[] PROGMEM = {
 	snetstat, ssensor, swire, ssleep, 
 #endif
 //#ifdef PAWELSEXT
-  sat,
+  sat, smode,
 //#endif
 	0
 };
@@ -535,7 +537,7 @@ const signed char tokens[] PROGMEM = {
 	TSENSOR, TWIRE, TSLEEP,
 #endif
 //#ifdef PAWELSEXT
-  TAT,
+  TAT, TMODE,
 //#endif
 	0
 };
@@ -857,6 +859,7 @@ void circle(int, int, int);
 void fcircle(int, int, int);
 
 void at(int, int);
+void mode(int);
 
 /* text output to a VGA display */
 void vgabegin();
