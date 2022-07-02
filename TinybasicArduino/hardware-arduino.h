@@ -90,6 +90,8 @@
 #define ARDUINOSD
 #define SDPIN   5
 #define STANDALONE 
+//#define PAWELSEXT
+
 /* 
 	Predefined hardware configurations, this assumes that all of the 
 	above are undef
@@ -3173,6 +3175,15 @@ signed char spistrbuf1[SPIRAMSBSIZE];
 signed char spistrbuf2[SPIRAMSBSIZE];
 #endif
 
+//#ifdef PAWELSEXT
+void at(int x, int y) {
+  Serial.print("at: ");
+  Serial.print(x);
+  Serial.print(", ");
+  Serial.print(y);
+  tc.setCursorPos(x, y);
+}
+//#endif
 
 // defined HARDWARE_H
 #endif

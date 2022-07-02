@@ -5969,6 +5969,18 @@ void xon(){
 }
 #endif
 
+//#ifdef PAWELSEXT
+void xat() {
+  short x0, y0;
+  nexttoken();
+  parsenarguments(2);
+  if (er != 0) return;
+  y0 = pop();
+  x0 = pop();
+  at(x0, y0);
+}
+//#endif
+
 /* 
  *	statement processes an entire basic statement until the end 
  *	of the line. 
@@ -6200,6 +6212,11 @@ void statement(){
 				xsleep();
 				break;	
 #endif
+//#ifdef PAWELSEXT
+      case TAT:
+        xat();
+        break;
+//#endif
 /* and all the rest */
 /*			case UNKNOWN:
 				error(EUNKNOWN);
