@@ -233,6 +233,7 @@ typedef unsigned char uint8_t;
 #define TMODE -22
 #define TTERM -21
 #define TCURSOR -20
+#define TSCALE -19
 /* constants used for some obscure purposes */
 #define TBUFFER -2
 /* UNKNOWN is not used in the current code, the 
@@ -424,6 +425,7 @@ const char sat[] PROGMEM = "AT";
 const char smode[] PROGMEM = "MODE";
 const char sterm[] PROGMEM = "TERM";
 const char scursor[] PROGMEM = "CURSOR";
+const char sscale[] PROGMEM = "SCALE";
 //#endif
 
 /* zero terminated keyword storage */
@@ -482,7 +484,7 @@ const char* const keyword[] PROGMEM = {
 	snetstat, ssensor, swire, ssleep, 
 #endif
 //#ifdef PAWELSEXT
-  sat, smode, sterm, scursor,
+  sat, smode, sterm, scursor, sscale,
 //#endif
 	0
 };
@@ -541,7 +543,7 @@ const signed char tokens[] PROGMEM = {
 	TSENSOR, TWIRE, TSLEEP,
 #endif
 //#ifdef PAWELSEXT
-  TAT, TMODE, TTERM, TCURSOR,
+  TAT, TMODE, TTERM, TCURSOR, TSCALE,
 //#endif
 	0
 };
@@ -867,6 +869,7 @@ void at(int, int);
 void mode(int);
 void term(int);
 void cursor(int);
+void scale(number_t, number_t);
 
 /* text output to a VGA display */
 void vgabegin();
@@ -1266,6 +1269,7 @@ void xat();
 void xmode();
 void xterm();
 void xcursor();
+void xscale();
 
 /* the statement loop */
 void statement();

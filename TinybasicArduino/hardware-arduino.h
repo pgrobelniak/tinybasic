@@ -985,8 +985,12 @@ void vgabegin() {
 
 int vgastat(char c) {return 0; }
 
+number_t scale_x = 1;
+number_t scale_y = 10 / (number_t)24;
+
 void vgascale(int* x, int* y) {
-	*y=*y*10/24;
+  *x = *x * scale_x;
+	*y = *y * scale_y;
 }
 
 void rgbcolor(int r, int g, int b) {
@@ -3252,6 +3256,11 @@ void term(int x) {
 
 void cursor(int x) {
   Terminal.enableCursor(x);
+}
+
+void scale(number_t x, number_t y) {
+  scale_x = x;
+  scale_y = y;
 }
 //#endif
 

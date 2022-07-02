@@ -6006,6 +6006,15 @@ void xcursor() {
   x0 = pop();
   cursor(x0);
 }
+
+void xscale(){
+  nexttoken();
+  parsenarguments(2);
+  if (er != 0) return; 
+  x=pop();
+  y=pop();
+  scale(y, x); 
+}
 //#endif
 
 /* 
@@ -6251,6 +6260,9 @@ void statement(){
         break;
       case TCURSOR:
         xcursor();
+        break;
+      case TSCALE:
+        xscale();
         break;
 //#endif
 /* and all the rest */
