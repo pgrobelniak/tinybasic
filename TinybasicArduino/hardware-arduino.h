@@ -990,10 +990,15 @@ void vgascale(int* x, int* y) {
 }
 
 void rgbcolor(int r, int g, int b) {
-	short vga;
-	if (r>191 || g>191 || b>191) vga=8; else vga=0;
-	vga=vga+r/128+g/128*2+b/128*4;
-	vga_graph_pen=fabgl::Color(vga);
+//	short vga;
+//	if (r>191 || g>191 || b>191) vga=8; else vga=0;
+//	vga=vga+r/128+g/128*2+b/128*4;
+//	vga_graph_pen=fabgl::Color(vga);
+  vga_graph_pen = fabgl::Color(r % 16);
+  vga_txt_pen = fabgl::Color(g % 16);
+  vga_txt_background = fabgl::Color(b % 16);
+  Terminal.setBackgroundColor(vga_txt_background);
+  Terminal.setForegroundColor(vga_txt_pen);
 }
 
 void vgacolor(short c) { vga_graph_pen = fabgl::Color(c%16); }
