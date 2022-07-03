@@ -64,6 +64,19 @@ This was a printed library of games in the 70s. Many examples of ultra short BAS
 - BlackJack: blackjk.bas - play blackjack, up to 7 players
 - Chomp: chomp.bas - avoid to eat the poissoned cockie, no computer player 
 - Hangman: hangman.bas - guess a letter and be hanged step by step
+- Digits: digits.bas - yet another number guessing game
+- Hello: hello.bas - a little dialoge with the computer
+- Awari: awari.bas - an African board game
+- Roulette: roulette.bas - roll the ball and bet your money
+- Bug: bug.bas - try to complete your bug before the computer does
+- BatNum: batnum.pas - take objects from a pile game with arbitrary parameters
+- Bowling: bowling.bas - bowling game simulation
+- Golf: golf.bas - simulate golf training
+- Boxing: boxing.bas - simulate boxing matches
+- BasketBall: basket.bas - basketball game simulation
+- Bombardment: bomb.bas - bombarding the enenmy
+- BombsAway: bombsaw.bas - fly a WWII bomber simulation
+- Poker: poker.bas - play a game of poker
 
 ## BASIC language features
 
@@ -183,6 +196,32 @@ chomp.bas: 2 dimensional arrays
 
 hangman.bas: mixing characters and arrays, 2d arrays, character out with PUT, @R
 
+digits.bas: two dimensional arrays, standard BASIC syntax
+
+hello.bas: string constants and variables
+
+awari.bas: arrays and elementary BASIC syntac
+
+roulette.bas: ON GOTO, arrays, random numbers
+
+bug.bas: ON GOTO, elementary string output
+
+batnum.bas: standard BASIC
+
+bowling.bas: random numbers and millis, 2D arrays
+
+golf.bas: Arrays, floating point math, READ DATA
+
+boxing.bas: Random numbers, elementary BASIC syntax
+
+basket.bas: autodimensioning of arrays, random nummbers
+
+bomb.bas: arrays and random numbers 
+
+bombsaw.bas: random numbers
+
+poker.bas: DEF FN functions, random numbers, mathematical functions
+
 ## Sources
 
 Original programs of the book "BASIC Computer Games"
@@ -192,5 +231,6 @@ This is an unofficial mirror of the source code provided inside the book **"Basi
 The files were taken from http://vintage-basic.net/games.html and ported to Stefan's Tinybasic to see how the interpreter would work. 
 
 The archive itself was a fork from https://github.com/GReaperEx/bcg.
+
 
 
