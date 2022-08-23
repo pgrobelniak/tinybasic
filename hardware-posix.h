@@ -121,7 +121,9 @@ void vgacolor(short c) {}
 void plot(int x, int y) {}
 void line(int x0, int y0, int x1, int y1)   {}
 void rect(int x0, int y0, int x1, int y1)   {}
+#ifndef SDL
 void frect(int x0, int y0, int x1, int y1)  {}
+#endif
 void circle(int x0, int y0, int r) {}
 void fcircle(int x0, int y0, int r) {}
 void vgabegin(){}

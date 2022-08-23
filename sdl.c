@@ -32,6 +32,7 @@ int blink = 0;
 Uint32 userevent;
 int run = 1;
 volatile int enter = 0;
+SDL_sem* rendererLock = NULL;
 
 int term_running() {
     return run;
@@ -121,9 +122,11 @@ void term_setup() {
     userevent = SDL_RegisterEvents(1);
     SDL_CreateThread(blinkThread, "Blink", (void*)NULL);
     SDL_CreateThread(eventsThread, "Events", (void*)NULL);
+    rendererLock = SDL_CreateSemaphore(1);
 }
 
 void draw() {
+    SDL_SemWait(rendererLock);
     int x, y, c;
     SDL_Rect r;
     r.x = 0;
@@ -149,6 +152,22 @@ void draw() {
         }
     }
     SDL_RenderPresent(renderer);
+    SDL_SemPost(rendererLock);
+}
+
+void frect(int x0, int y0, int x1, int y1)  {
+    SDL_SemWait(rendererLock);
+    printf("%d %d, %d, %d\n",x0,y0,x1,y1);
+    SDL_Rect rect;
+    rect.x = x0;
+    rect.y = y0;
+    rect.w = x1 - x0;
+    rect.h = y1 - y0;
+    printf("prep\n");
+    SDL_RenderFillRect(renderer, &rect);
+    printf("fild\n");
+    SDL_RenderPresent(renderer);
+    SDL_SemPost(rendererLock);
 }
 
 void scroll() {
