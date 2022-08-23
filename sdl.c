@@ -32,7 +32,7 @@ int ctrl = 0;
 int blink = 0;
 Uint32 userevent;
 int run = 1;
-volatile int enter = 0;
+volatile int enter = -1;
 SDL_sem* rendererLock = NULL;
 int pr = 255;
 int pg = 255;
@@ -286,7 +286,7 @@ void term_putchar(char key) {
 }
 
 void consins(char *b, short nb) {
-    while(run && !enter) {
+    while(run && enter == -1) {
         SDL_Delay(1);
     }
     b[0] = TERM_WIDTH;
@@ -294,7 +294,8 @@ void consins(char *b, short nb) {
         b[i+1]=fb[enter][i];
     }
     b[TERM_WIDTH+2]=0;
-    enter = 0;
+    //printf("%s\n",b);
+    enter = -1;
 }
 
 void keydown(SDL_Scancode scancode, int repeat) {
