@@ -25,6 +25,7 @@ SDL_Renderer *renderer;
 SDL_Texture *fonttex[128];
 SDL_Texture *canvas;
 char fb[TERM_HEIGHT][TERM_WIDTH];
+Col fbc[TERM_HEIGHT][TERM_WIDTH];
 int curx = 0;
 int cury = 0;
 int shift = 0;
@@ -117,6 +118,9 @@ void term_clear() {
     for(int x = 0; x < TERM_WIDTH; x++) {
         for(int y = 0; y < TERM_HEIGHT; y++) {
             fb[y][x] = ' ';
+            fbc[y][x].r = pr;
+            fbc[y][x].g = pg;
+            fbc[y][x].b = pb;
         }
     }
 }
@@ -163,8 +167,7 @@ void draw() {
             if(c < 128) {
                 r.x = (x * CHAR_WIDTH * SCALE);
                 r.y = (y * CHAR_HEIGHT * SCALE);
-                SDL_SetTextureColorMod(fonttex[c], pr, pg, pb);
-                //SDL_SetTextureBlendMode(fonttex[c], SDL_BLENDMODE_BLEND);
+                SDL_SetTextureColorMod(fonttex[c], fbc[y][x].r, fbc[y][x].g, fbc[y][x].b);
                 SDL_RenderCopy(renderer, fonttex[c], NULL, &r);
             }
             if (blink && x == curx && y == cury) {
@@ -204,10 +207,14 @@ void scroll() {
     for(y = 1; y < TERM_HEIGHT; y++) {
         for(x = 0; x < TERM_WIDTH; x++) {
             fb[y-1][x] = fb[y][x];
+            fbc[y-1][x] = fbc[y][x];
         }
     }
     for(x = 0; x < TERM_WIDTH; x++) {
         fb[TERM_HEIGHT-1][x] = ' ';
+        fbc[TERM_HEIGHT-1][x].r = pr;
+        fbc[TERM_HEIGHT-1][x].g = pg;
+        fbc[TERM_HEIGHT-1][x].b = pb;
     }
 }
 
@@ -233,12 +240,21 @@ void backSpace() {
     if (curx < 0) {
         moveLeft();
         fb[cury][curx] = ' ';
+        fbc[cury][curx].r = pr;
+        fbc[cury][curx].b = pb;
+        fbc[cury][curx].g = pg;
     } else {
         for (int x = curx; x < TERM_WIDTH; x++) {
             if (x == (TERM_WIDTH-1)) {
                 fb[cury][x] = ' ';
+                fbc[cury][x].r = pr;
+                fbc[cury][x].g = pg;
+                fbc[cury][x].b = pb;
             } else {
                 fb[cury][x] = fb[cury][x+1];
+                fbc[cury][x].r = fbc[cury][x+1].r;
+                fbc[cury][x].g = fbc[cury][x+1].g;
+                fbc[cury][x].b = fbc[cury][x+1].b;
             }
         }
     }
@@ -281,6 +297,9 @@ void term_putchar(char key) {
         backSpace();
     } else {
         fb[cury][curx]=key;
+        fbc[cury][curx].r=pr;
+        fbc[cury][curx].g=pg;
+        fbc[cury][curx].b=pb;
         moveRight();
     }
 }
