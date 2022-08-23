@@ -119,10 +119,6 @@ void term_clear() {
             fb[y][x] = ' ';
         }
     }
-    SDL_SetRenderTarget(renderer, canvas);
-    SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, NULL);
 }
 
 void term_setup() {
@@ -141,6 +137,10 @@ void term_setup() {
     SDL_CreateThread(eventsThread, "Events", (void*)NULL);
     rendererLock = SDL_CreateSemaphore(1);
     canvas = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
+    SDL_SetRenderTarget(renderer, canvas);
+    SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
     term_clear();
 }
 
@@ -271,7 +271,8 @@ void moveRight() {
 }
 
 void term_putchar(char key) {
-    if (key == 0) {
+    if (key == 12) {
+        term_clear();
     } else if (key == '\n') {
         curx=0;
         cury++;
