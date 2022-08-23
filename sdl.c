@@ -186,18 +186,15 @@ void rgbcolor(int r, int g, int b) {
 
 void frect(int x0, int y0, int x1, int y1)  {
     SDL_SemWait(rendererLock);
-    printf("%d %d, %d, %d\n",x0,y0,x1,y1);
     SDL_Rect rect;
     rect.x = x0;
     rect.y = y0;
     rect.w = x1 - x0;
     rect.h = y1 - y0;
-    printf("prep\n");
     SDL_SetRenderTarget(renderer, canvas);
     SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
     SDL_RenderFillRect(renderer, &rect);
     SDL_SetRenderTarget(renderer, NULL);
-    printf("fild\n");
     SDL_SemPost(rendererLock);
     draw();
 }

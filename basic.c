@@ -174,9 +174,6 @@
 /* debug mode switch */
 #define DEBUG 0
 
-/* SDL terminal */
-#define SDL
-
 /*
  * the core basic language headers including some Arduino device stuff
  */
