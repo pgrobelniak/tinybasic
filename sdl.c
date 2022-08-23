@@ -56,7 +56,7 @@ void createChar(Uint32 *raster, int c) {
                 Col col;
                 col.r = 255;
                 col.g = 255;
-                col.b = 0;
+                col.b = 255;
                 col.a = 255;
                 d[(i*2)*CHAR_WIDTH + j] = col;
                 d[(i*2+1)*CHAR_WIDTH + j] = col;
@@ -153,6 +153,7 @@ void draw() {
     r.h = CHAR_HEIGHT * SCALE;
     SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
     SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderCopy(renderer, canvas, NULL, NULL);
     SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
     for(x = 0; x < TERM_WIDTH; x++) {
@@ -161,6 +162,7 @@ void draw() {
             if(c < 128) {
                 r.x = (x * CHAR_WIDTH * SCALE);
                 r.y = (y * CHAR_HEIGHT * SCALE);
+                SDL_SetTextureColorMod(fonttex[c], pr, pg, pb);
                 SDL_RenderCopy(renderer, fonttex[c], NULL, &r);
             }
             if (blink && x == curx && y == cury) {
@@ -186,8 +188,8 @@ void frect(int x0, int y0, int x1, int y1)  {
     SDL_Rect rect;
     rect.x = x0;
     rect.y = y0;
-    rect.w = x0 - x1;
-    rect.h = y0 - y1;
+    rect.w = x1 - x0;
+    rect.h = y1 - y0;
     printf("prep\n");
     SDL_SetRenderTarget(renderer, canvas);
     SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
