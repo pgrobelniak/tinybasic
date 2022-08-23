@@ -75,6 +75,7 @@ void createFont() {
         fonttex[i] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, w, h);
         SDL_SetTextureBlendMode(fonttex[i], SDL_BLENDMODE_ADD);
         SDL_UpdateTexture(fonttex[i], NULL, raster, w*sizeof(Uint32));
+        SDL_SetTextureBlendMode(fonttex[i], SDL_BLENDMODE_BLEND);
     }
 }
 
@@ -119,7 +120,7 @@ void term_clear() {
         }
     }
     SDL_SetRenderTarget(renderer, canvas);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+    SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
 }
@@ -163,6 +164,7 @@ void draw() {
                 r.x = (x * CHAR_WIDTH * SCALE);
                 r.y = (y * CHAR_HEIGHT * SCALE);
                 SDL_SetTextureColorMod(fonttex[c], pr, pg, pb);
+                //SDL_SetTextureBlendMode(fonttex[c], SDL_BLENDMODE_BLEND);
                 SDL_RenderCopy(renderer, fonttex[c], NULL, &r);
             }
             if (blink && x == curx && y == cury) {
