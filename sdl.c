@@ -33,6 +33,10 @@ Uint32 userevent;
 int run = 1;
 volatile char lastChar = 0;
 
+int term_running() {
+    return run;
+}
+
 void createChar(Uint32 *raster, int c) {
     int i, j;
     Uint8 *chr = &vt52rom[c*8];
@@ -234,7 +238,7 @@ void term_putchar(char key) {
 }
 
 char term_getchar() {
-    while(lastChar == 0) {
+    while(run && lastChar == 0) {
         SDL_Delay(1);
     }
     char c = lastChar;
