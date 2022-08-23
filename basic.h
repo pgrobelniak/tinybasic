@@ -88,7 +88,7 @@ typedef unsigned char uint8_t;
 #define LINECACHESIZE	16
 #endif
 /* more duffers and vars */
-#define SBUFSIZE		32
+#define SBUFSIZE		82//32
 #define VARSIZE			26
 /* default sizes of arrays and strings if they are not DIMed */
 #define ARRAYSIZEDEF	10
@@ -566,7 +566,11 @@ const signed char tokens[] PROGMEM = {
 #define ESDCARD		 28
 
 const char mfile[]    	PROGMEM = "file.bas";
+#ifdef SDL
+const char mprompt[]	PROGMEM = "";
+#else
 const char mprompt[]	PROGMEM = "> ";
+#endif
 const char mgreet[]		PROGMEM = "Stefan's Basic 1.4a";
 const char mline[]		PROGMEM = "LINE";
 const char mnumber[]	PROGMEM = "NUMBER";

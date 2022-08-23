@@ -461,17 +461,14 @@ short serialavailable() {return TRUE; }
  * this code needs to go to the main interpreter section after 
  * thorough rewrite
  */
+#ifndef SDL
 void consins(char *b, short nb) {
 	char c;
 	
 	z.a=1;
 	while(z.a < nb) {
-#ifdef SDL
-		c=term_getchar();
-#else
 		c=inch();
 		if (c == '\r') c=inch();
-#endif
 		if (c == '\n' || c == -1 ) { /* terminal character is either newline or EOF */
 			break;
 		} else {
@@ -482,6 +479,7 @@ void consins(char *b, short nb) {
 	z.a--;
 	b[0]=(unsigned char)z.a;
 }
+#endif
 
 /* handling the second serial interface */
 void prtbegin() {}

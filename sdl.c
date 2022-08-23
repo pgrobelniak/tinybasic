@@ -31,7 +31,7 @@ int ctrl = 0;
 int blink = 0;
 Uint32 userevent;
 int run = 1;
-volatile char lastChar = 0;
+volatile int enter = 0;
 
 int term_running() {
     return run;
@@ -220,7 +220,6 @@ void moveRight() {
 }
 
 void term_putchar(char key) {
-    printf("%d %c\n",key,key);
     if (key == 0) {
     } else if (key == '\n') {
         curx=0;
@@ -237,13 +236,16 @@ void term_putchar(char key) {
     }
 }
 
-char term_getchar() {
-    while(run && lastChar == 0) {
+void consins(char *b, short nb) {
+    while(run && !enter) {
         SDL_Delay(1);
     }
-    char c = lastChar;
-    lastChar = 0;
-    return c;
+    b[0] = TERM_WIDTH;
+    for (int i = 0; i < TERM_WIDTH; i++) {
+        b[i+1]=fb[enter][i];
+    }
+    b[TERM_WIDTH+2]=0;
+    enter = 0;
 }
 
 void keydown(SDL_Scancode scancode, int repeat) {
@@ -257,7 +259,8 @@ void keydown(SDL_Scancode scancode, int repeat) {
         case SDL_SCANCODE_RCTRL: 
             ctrl = 1; 
             return;
-        /*case SDL_SCANCODE_RETURN:
+        case SDL_SCANCODE_RETURN:
+            enter = cury;
             curx=0;
             cury++;
             if (cury == TERM_HEIGHT) {
@@ -279,7 +282,7 @@ void keydown(SDL_Scancode scancode, int repeat) {
             return;
         case SDL_SCANCODE_DOWN:
             moveDown();
-            return;*/
+            return;
         default: 
             break;
     }
@@ -294,7 +297,6 @@ void keydown(SDL_Scancode scancode, int repeat) {
     if(ctrl) {
         key &= 037;
     }
-    lastChar = key;
     term_putchar(key);
 }
 
