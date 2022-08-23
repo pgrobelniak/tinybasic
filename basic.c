@@ -174,6 +174,9 @@
 /* debug mode switch */
 #define DEBUG 0
 
+/* SDL terminal */
+#define SDL
+
 /*
  * the core basic language headers including some Arduino device stuff
  */
@@ -6810,6 +6813,9 @@ void loop() {
 /* if we are not on an Arduino */
 #ifndef ARDUINO
 int main(int argc, char* argv[]){
+#ifdef SDL
+	term_setup();
+#endif
 
 /* save the arguments if there are any */
     bargc=argc;

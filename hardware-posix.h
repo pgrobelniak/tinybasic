@@ -445,7 +445,11 @@ void serialwrite(char c) {
 	if (c > 31) charcount+=1;
 	if (c == 10) charcount=0;
 #endif
+#ifdef SDL
+	term_putchar(c);
+#else
 	putchar(c); 
+#endif
 }
 char serialread() { return getchar(); }
 short serialcheckch(){ return TRUE; }
@@ -462,8 +466,12 @@ void consins(char *b, short nb) {
 	
 	z.a=1;
 	while(z.a < nb) {
+#ifdef SDL
+		c=term_getchar();
+#else
 		c=inch();
 		if (c == '\r') c=inch();
+#endif
 		if (c == '\n' || c == -1 ) { /* terminal character is either newline or EOF */
 			break;
 		} else {
