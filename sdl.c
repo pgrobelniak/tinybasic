@@ -23,6 +23,7 @@ struct Col {
 SDL_Window *window;
 SDL_Renderer *renderer;
 SDL_Texture *fonttex[128];
+SDL_Texture *canvas;
 char fb[TERM_HEIGHT][TERM_WIDTH];
 int curx = 0;
 int cury = 0;
@@ -33,6 +34,12 @@ Uint32 userevent;
 int run = 1;
 volatile int enter = 0;
 SDL_sem* rendererLock = NULL;
+int pr = 255;
+int pg = 255;
+int pb = 0;
+int br = 0;
+int bg = 0;
+int bb = 255;
 
 int term_running() {
     return run;
@@ -103,6 +110,20 @@ int eventsThread() {
     return 0;
 }
 
+void term_clear() {
+    curx = 0;
+    cury = 0;
+    for(int x = 0; x < TERM_WIDTH; x++) {
+        for(int y = 0; y < TERM_HEIGHT; y++) {
+            fb[y][x] = ' ';
+        }
+    }
+    SDL_SetRenderTarget(renderer, canvas);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+}
+
 void term_setup() {
     SDL_Init(SDL_INIT_EVERYTHING);
     SDL_WindowFlags flags = SDL_WINDOW_OPENGL;
@@ -114,15 +135,12 @@ void term_setup() {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_SetHint("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0");
     createFont();
-    for(int x = 0; x < TERM_WIDTH; x++) {
-        for(int y = 0; y < TERM_HEIGHT; y++) {
-            fb[y][x] = ' ';
-        }
-    }
     userevent = SDL_RegisterEvents(1);
     SDL_CreateThread(blinkThread, "Blink", (void*)NULL);
     SDL_CreateThread(eventsThread, "Events", (void*)NULL);
     rendererLock = SDL_CreateSemaphore(1);
+    canvas = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
+    term_clear();
 }
 
 void draw() {
@@ -133,9 +151,10 @@ void draw() {
     r.y = 0;
     r.w = CHAR_WIDTH * SCALE;
     r.h = CHAR_HEIGHT * SCALE;
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+    SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
     SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+    SDL_RenderCopy(renderer, canvas, NULL, NULL);
+    SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
     for(x = 0; x < TERM_WIDTH; x++) {
         for(y = 0; y < TERM_HEIGHT; y++) {
             c = fb[y][x];
@@ -155,19 +174,28 @@ void draw() {
     SDL_SemPost(rendererLock);
 }
 
+void rgbcolor(int r, int g, int b) {
+    pr = r;
+    pg = g;
+    pb = b;
+}
+
 void frect(int x0, int y0, int x1, int y1)  {
     SDL_SemWait(rendererLock);
     printf("%d %d, %d, %d\n",x0,y0,x1,y1);
     SDL_Rect rect;
     rect.x = x0;
     rect.y = y0;
-    rect.w = x1 - x0;
-    rect.h = y1 - y0;
+    rect.w = x0 - x1;
+    rect.h = y0 - y1;
     printf("prep\n");
+    SDL_SetRenderTarget(renderer, canvas);
+    SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
     SDL_RenderFillRect(renderer, &rect);
+    SDL_SetRenderTarget(renderer, NULL);
     printf("fild\n");
-    SDL_RenderPresent(renderer);
     SDL_SemPost(rendererLock);
+    draw();
 }
 
 void scroll() {

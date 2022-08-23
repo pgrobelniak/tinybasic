@@ -116,12 +116,12 @@ char dspwaitonscroll() { return 0; }
 char dspactive() {return FALSE; }
 void dspsetscrollmode(char c, short l) {}
 void dspsetcursor(short c, short r) {}
-void rgbcolor(int r, int g, int b) {}
 void vgacolor(short c) {}
 void plot(int x, int y) {}
 void line(int x0, int y0, int x1, int y1)   {}
 void rect(int x0, int y0, int x1, int y1)   {}
 #ifndef SDL
+void rgbcolor(int r, int g, int b) {}
 void frect(int x0, int y0, int x1, int y1)  {}
 #endif
 void circle(int x0, int y0, int r) {}
