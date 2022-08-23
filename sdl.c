@@ -133,8 +133,6 @@ void term_setup() {
     SDL_SetHint("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0");
     createFont();
     userevent = SDL_RegisterEvents(1);
-    SDL_CreateThread(blinkThread, "Blink", (void*)NULL);
-    SDL_CreateThread(eventsThread, "Events", (void*)NULL);
     rendererLock = SDL_CreateSemaphore(1);
     canvas = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
     SDL_SetRenderTarget(renderer, canvas);
@@ -142,6 +140,8 @@ void term_setup() {
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
     term_clear();
+    SDL_CreateThread(blinkThread, "Blink", (void*)NULL);
+    SDL_CreateThread(eventsThread, "Events", (void*)NULL);
 }
 
 void draw() {
