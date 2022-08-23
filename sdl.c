@@ -311,13 +311,13 @@ void keydown(SDL_Scancode scancode, int repeat) {
             ctrl = 1; 
             return;
         case SDL_SCANCODE_RETURN:
-            enter = cury;
             curx=0;
             cury++;
             if (cury == TERM_HEIGHT) {
                 scroll();
                 cury = TERM_HEIGHT-1;
             }
+            enter = cury - 1;
             return;
         case SDL_SCANCODE_BACKSPACE:
             backSpace();
