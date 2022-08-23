@@ -20,8 +20,9 @@ Microcontroller specific features are EEPROM access, EEPROM program storage and 
 
 Most of the builtin Arduino demos are ported to BASIC and published here https://github.com/slviajero/tinybasic/tree/main/examples. These programs are the BASIC versions of the C++ programs in https://docs.arduino.cc/built-in-examples/. Please look at this original Arduino website for wiring and project information.
 
-
 The interpreter can be compliled with standard gcc on almost any architecture or in the Arduino IDE without changes. 
+
+A manual of the BASIC interpreter is in the repo https://github.com/slviajero/tinybasic/blob/main/MANUAL.md
 
 Look at the WIKI https://github.com/slviajero/tinybasic/wiki for more information.
 
@@ -36,7 +37,9 @@ The interpreter also implements the specification of Apple Integer BASIC sold fo
 
 I/O handling and some of the microcontroller BASIC features are new and are not compatible to the BASIC dialects above.
 
-The interpreter is not meant to be compatible to any BASIC dialect. I ported most of the games of 101 BASIC games from 1977 as test programs to test and check compatibility. The main restriction is that arrays can only be one dimensional and that there are no string arrays. All data objects remain in the same memory location once they are defined. There is no garbage collection. This makes the behaviour of the BASIC interpreter deterministic, real time capable and fast. 
+The interpreter is not meant to be compatible to any BASIC dialect. I ported most of the games of 101 BASIC games from 1977 as test programs to test and check compatibility. T
+
+The main difference to the old BASIC interpreters is that data objects remain in the same memory location once they are defined. There is no garbage collection. This makes the behaviour of the BASIC interpreter deterministic, real time capable and fast. 
 
 Programs are always fully tokenized at input. This includes keywords, numbers, strings and variables names. No lexical analysis is done or needed at runtime. The stored BASIC program resembles more a byte code language than a stored interpreter code. This is the concept Steve Wozniak used on the Apple 1. 
 
@@ -45,6 +48,8 @@ The core interpreter loop runs at approximately one token every 40 microseconds 
 For further information, please look at: https://github.com/slviajero/tinybasic/wiki
 
 There is a set of BASIC programs in the examples section https://github.com/slviajero/tinybasic/tree/main/examples of the repo. They showcase language features and use cases.
+
+For more information on the language, please look in the manual at: https://github.com/slviajero/tinybasic/blob/main/MANUAL.md
 
 ## Files in this archive 
 
@@ -56,27 +61,13 @@ For the Arduino IDE place hardware-arduino.h in your Arduino sketch directory. T
 
 For POSIX OSes you need hardware-posix.h in your working directory. GCC compiles BASIC for Linux, Mac (primary dev platform), Windows (with MINGW), and MSDOS (Turbo C 2).
 
-For simple Arduino boards I prepared file versions in Arduino cloud 
-
-Use one of these two links.
-
-A bare minimum Arduino system is prepared here
-
-https://create.arduino.cc/editor/sl001/ade3b2af-6781-4dfc-b9dd-4eec95405723/preview
-
-
-A quite complete ESP8266 system without network support can be found here
-
-https://create.arduino.cc/editor/sl001/27a26f15-c23b-408d-8d39-e6948aead495/preview
-
-
-The single file versions contain the full code but are not maintained regularly. They always will be behind the newest code. Please use them only as quick and dirty demos. They are not updated often.
-
 utility/monitor.py is a little serial monitor to interact with the running BASIC interpreter on the Arduino. It allows very simple loading of files into the Arduino and saving of output to a file on a computer. utility/arduinoterm is a wrapper of monitor.py.
 
 utility/dosify converts the code to tcc 2.01 ready format to be compiled in DOSBOX.
 
 examples contains a lot of demo programs and games ported to BASIC.
+
+MANUAL.md is the BASIC manual.
 
 ## What's next
 

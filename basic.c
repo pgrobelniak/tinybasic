@@ -1,35 +1,33 @@
 /*
-
-	$Id: basic.c,v 1.136 2022/05/30 04:43:52 stefan Exp stefan $
-
-	Stefan's IoT BASIC interpreter 
-
- 	See the licence file on 
-	https://github.com/slviajero/tinybasic for copyright/left.
-    (GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007)
-
-	Author: Stefan Lenz, sl001@serverfabrik.de
-
-	The first set of definions define the target.
-	- MINGW switches on Windows calls. 
-	- MSDOS for MSDOS file access.
-	- MAC doesn't need more settings here
-	- RASPPI activates wiring code
-	- Review hardware-*.h for settings specific Arduino hardware settings
-	- HAS* activates or deactives features of the interpreter
-	- the extension flags control features and code size
-
-	MEMSIZE sets the BASIC main memory to a fixed value,
-		if MEMSIZE=0 a heuristic is used based on free heap
-		size and architecture parameters
-
-	USEMEMINTERFACE controls the way memory is accessed. Don't change 
-	this here. It is a parameter set by hardware-arduino.h. 
-	This feature is experimental.
-
-*/
-
-
+ *
+ *	$Id: basic.c,v 1.138 2022/08/15 18:08:56 stefan Exp stefan $ 
+ *
+ *	Stefan's IoT BASIC interpreter 
+ *
+ * 	See the licence file on 
+ *	https://github.com/slviajero/tinybasic for copyright/left.
+ *    (GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007)
+ *
+ *	Author: Stefan Lenz, sl001@serverfabrik.de
+ *
+ *	The first set of definions define the target.
+ *	- MINGW switches on Windows calls. 
+ *	- MSDOS for MSDOS file access.
+ *	- MAC doesn't need more settings here
+ *	- RASPPI activates wiring code
+ *	- Review hardware-*.h for settings specific Arduino hardware settings
+ *	- HAS* activates or deactives features of the interpreter
+ *	- the extension flags control features and code size
+ *
+ *	MEMSIZE sets the BASIC main memory to a fixed value,
+ *		if MEMSIZE=0 a heuristic is used based on free heap
+ *		size and architecture parameters
+ *
+ *	USEMEMINTERFACE controls the way memory is accessed. Don't change 
+ *	this here. It is a parameter set by hardware-arduino.h. 
+ *	This feature is experimental.
+ *
+ */
 #undef MINGW
 #undef MSDOS
 #undef RASPPI
@@ -45,7 +43,7 @@
  * BASICTINYWITHFLOAT: a floating point tinybasic
  * BASICMINIMAL: minimal language
  */
-#define BASICFULL
+#define  BASICFULL
 #undef   BASICINTEGER
 #undef   BASICMINIMAL
 #undef   BASICTINYWITHFLOAT
@@ -68,6 +66,7 @@
 #define HASDARKARTS
 #define HASIOT
 #define HASMULTIDIM
+#define HASSTRINGARRAYS
 
 /* Palo Alto plus Arduino functions */
 #ifdef BASICMINIMAL
@@ -85,6 +84,7 @@
 #undef HASDARKARTS
 #undef HASIOT
 #undef HASMULTIDIM
+#undef HASSTRINGARRAYS
 #endif
 
 /* all features minus float */
@@ -92,7 +92,7 @@
 #define HASAPPLE1
 #define HASARDUINOIO
 #define HASFILEIO
-#undef HASTONE
+#undef  HASTONE
 #define HASPULSE
 #define HASSTEFANSEXT
 #define HASERRORMSG
@@ -103,6 +103,7 @@
 #define HASDARKARTS
 #define HASIOT
 #define HASMULTIDIM
+#define HASSTRINGARRAYS
 #endif
 
 /* all features activated */
@@ -121,6 +122,7 @@
 #define HASDARKARTS
 #define HASIOT
 #define HASMULTIDIM
+#define HASSTRINGARRAYS
 #endif
 
 /* a Tinybasic with float support */
@@ -139,7 +141,18 @@
 #undef HASDARKARTS
 #undef HASIOT
 #undef HASMULTIDIM
+#undef HASSTRINGARRAYS
 #endif
+
+/*
+ * Experimental features, to be tested and not sure that the add
+ * real value 
+ *
+ * HASMSTAB: make tab more like MS TAB then Apple 1 TAB
+ * HASARRAYLIMIT: make the lower limit of an variable
+ */
+#define HASMSTAB
+#define HASARRAYLIMIT
 
 /* 
  *	Language feature dependencies
@@ -149,6 +162,10 @@
  */
 #if defined(HASDARTMOUTH) || defined(HASDARKARTS) || defined(HASIOT)
 #define HASAPPLE1
+#endif
+
+#if defined(HASSTRINGARRAYS)
+#define HASMULTIDIM
 #endif
 
 /* hardcoded memory size, set 0 for automatic malloc, don't redefine this beyond this point */
@@ -203,7 +220,7 @@ address_t ballocmem() {
 		4096, 	// Arduino Nano Every, MEGA with a lot of stuff 
 		2048,   // AVR with a lot of additional stuff on them
 		1024, 	// UNO
-		128,		// fallback, something has gone wrong
+		128,	// fallback, something has gone wrong
 		0      
 	}; 
 
@@ -323,6 +340,18 @@ char autorun() {
 	} 
 #endif
 #if defined(FILESYSTEMDRIVER) || ! defined(ARDUINO)
+/* on a POSIX or DOS platform, we check the command line first and the autoexec */
+#ifndef ARDUINO
+    if (bargc > 0) {
+        if (ifileopen(bargv[1])) {
+          	xload(bargv[1]);
+  		    st=SRUN;
+            ifileclose();
+            bnointafterrun=1;
+            return TRUE;
+        }
+    }
+#endif
 	if (ifileopen("autoexec.bas")) {
   		xload("autoexec.bas");
   		st=SRUN;
@@ -359,20 +388,20 @@ address_t bmalloc(mem_t t, mem_t c, mem_t d, address_t l) {
     		vsize=numsize+3;
     		break;
 #ifndef HASMULTIDIM
-		case ARRAYVAR:
-			vsize=numsize*l+addrsize+3;
-			break;
+			case ARRAYVAR:
+				vsize=numsize*l+addrsize+3;
+				break;
 #else
 /* test multidim implementation for n=2 */
-		case ARRAYVAR:
-			vsize=numsize*l+addrsize*2+3;
-			break;
+			case ARRAYVAR:
+				vsize=numsize*l+addrsize*2+3;
+				break;
 #endif
-		case TFN:
-			vsize=addrsize+2+3;
-			break;
-		default:
-			vsize=l+addrsize+3;
+			case TFN:
+				vsize=addrsize+2+3;
+				break;
+			default:
+				vsize=l+addrsize+3;
 	}
 	
 /* enough memory ? */ 
@@ -411,14 +440,23 @@ address_t bmalloc(mem_t t, mem_t c, mem_t d, address_t l) {
 }
 
 /*
- *	bfind() passes back the location of the object as result
- *		the length of the object is in z.a as a side effect 
+ * bfind() passes back the location of the object as result
+ *	the length of the object is in z.a as a side effect 
+ *	rememers the last search
+ *
  */
 address_t bfind(mem_t t, mem_t c, mem_t d) {
 	address_t b = memsize;
 	mem_t t1;
 	mem_t c1, d1;
 	address_t i=0;
+
+/* the bfind cache, did we ask for that object before? - 
+	needed to make the string code efficient */
+	if (t == bfindt && c == bfindc && d == bfindd) {
+		z.a=bfindz;
+		return bfinda;
+	}
 
 	while (i < nvars) { 
 
@@ -447,10 +485,82 @@ address_t bfind(mem_t t, mem_t c, mem_t d) {
 
 		b-=z.a;
 
-		if (c1 == c && d1 == d && t1 == t) return b+1;
+		if (c1 == c && d1 == d && t1 == t) {
+			bfindc=c;
+			bfindd=d;
+			bfindt=t;
+			bfindz=z.a;
+			bfinda=b+1;
+			return b+1;
+		}
 		i++;
 	}
 
+	return 0;
+}
+
+/* finds an object and deletes the heap from this object on 
+	including the object itself */
+address_t bfree(mem_t t, mem_t c, mem_t d) {
+	address_t b = memsize;
+	mem_t t1;
+	mem_t c1, d1;
+	address_t i=0;
+
+	if (DEBUG) { outsc("*** bfree called for "); outch(c); outch(d); outsc(" on heap with token "); outnumber(t); outcr(); }
+
+	while (i < nvars) { 
+
+/*
+		c1=mem[b--];
+		d1=mem[b--];
+		t1=mem[b--];
+*/
+
+		c1=memread2(b--);
+		d1=memread2(b--);
+		t1=memread2(b--);
+
+		if (t == t1 && c == c1 && d == d1) {
+
+/* set the number of variables to the new value */
+			nvars=i;
+			if (DEBUG) { outsc("*** bfree setting nvars to "); outnumber(nvars); outcr(); }
+
+/* clean up - this is somehow optional, one could drop this */
+
+			if (DEBUG) { outsc("*** bfree clearing "); outnumber(himem); outspc(); outnumber(b+3); outcr(); }
+			for (i=himem; i<=b+3; i++) memwrite2(i, 0);
+
+/* now set the memory to the right address */			
+			himem=b+3;
+
+/* forget the chache !! */
+			bfindc=0;
+			bfindd=0;
+			bfindt=0;
+			bfindz=0;
+			bfinda=0;
+
+			return himem;
+		}
+
+		switch(t1) {
+			case VARIABLE:
+				z.a=numsize;
+				break;
+			case TFN:
+				z.a=addrsize+2;
+				break;
+			default:
+				b=b-addrsize+1;
+				getnumber(b, addrsize);
+				b--;
+		}
+
+		b-=z.a;
+		i++;
+	}
 	return 0;
 }
 
@@ -573,10 +683,14 @@ void setvar(mem_t c, mem_t d, number_t v){
 void clrvars() {
 	address_t i;
 	for (i=0; i<VARSIZE; i++) vars[i]=0;
+#ifdef HASAPPLE1
 	nvars=0;
 /*	for (i=himem; i<memsize; i++) mem[i]=0; */
 	for (i=himem; i<memsize; i++) memwrite2(i, 0);
 	himem=memsize;
+	bfindc=bfindd=bfindt=0;
+	bfinda=bfindz=0;
+#endif
 }
 
 /* the BASIC memory access function */
@@ -791,14 +905,20 @@ void array(mem_t m, mem_t c, mem_t d, address_t i, address_t j, number_t* v) {
 /* dynamically allocated arrays autocreated if needed */ 
 		if ( !(a=bfind(ARRAYVAR, c, d)) ) a=createarray(c, d, ARRAYSIZEDEF, 1);
 		if (er != 0) return;
+#ifndef HASMULTIDIM
 		h=z.a/numsize;
+#else 
+		h=(z.a - addrsize)/numsize;
+#endif
+
+		if (DEBUG) { outsc("** in array base address"); outnumber(a); outcr(); }
 
 /* redudant code to getarrayseconddim */
 #ifdef HASMULTIDIM
 		dim=getarrayseconddim(a, z.a);
-		a=a+((i-1)*dim+(j-1))*numsize;
+		a=a+((i-arraylimit)*dim+(j-arraylimit))*numsize;
 #else 
-		a=a+(i-1)*numsize;
+		a=a+(i-arraylimit)*numsize;
 #endif
 #else
 		error(EVARIABLE); 
@@ -806,13 +926,20 @@ void array(mem_t m, mem_t c, mem_t d, address_t i, address_t j, number_t* v) {
 #endif
 	}
 
-
 /* is the index in range */
 #ifdef HASMULTIDIM
-	if (DEBUG) { outsc("** in array "); outnumber(i); outspc(); outnumber(j); outspc(); outnumber(dim); outspc(); outnumber(a); outcr(); }
-	if ( (j < 1) || (j > dim) || (i < 1) || (i > h/dim) ) { error(EORANGE); return; }
+  if (DEBUG) { 
+  	outsc("** in array "); 
+  	outnumber(i); outspc(); 
+  	outnumber(j); outspc(); 
+  	outnumber(dim); outspc(); 
+  	outnumber(h); outspc();
+  	outnumber(a); outcr();
+  }
+	if ( (j < arraylimit) || (j >= dim + arraylimit) || (i < arraylimit) || (i >= h/dim + arraylimit)) { error(EORANGE); return; }
 #else
-	if ( (i < 1) || (i > h) ) { error(EORANGE); return; }
+	if (DEBUG) { outsc("** in array "); outnumber(i);  outspc(); outnumber(a); outcr(); }
+	if ( (i < arraylimit) || (i >= h + arraylimit) ) { error(EORANGE); return; }
 #endif
 
 /* set or get the array */
@@ -825,14 +952,34 @@ void array(mem_t m, mem_t c, mem_t d, address_t i, address_t j, number_t* v) {
 	}
 }
 
-/* create a string on the heap */
-address_t createstring(char c, char d, address_t i) {
+/* create a string on the heap, i is the length of the string, j the dimension of the array */
+address_t createstring(char c, char d, address_t i, address_t j) {
 #ifdef HASAPPLE1
-	address_t a;
+	address_t a, zt;
 	
 	if (DEBUG) { outsc("Create string "); outch(c); outch(d); outspc(); outnumber(nvars); outcr(); }
 
+#ifndef HASSTRINGARRAYS
+/* if no string arrays are in the code, we reserve the number of bytes i and space for the index */
 	if (bfind(STRINGVAR, c, d)) error(EVARIABLE); else a=bmalloc(STRINGVAR, c, d, i+strindexsize);
+	if (er != 0) return 0;
+	return a;
+#else
+/* string arrays need the number of array elements which address_ hence addresize bytes and then 
+		the space for j strings */
+	if (bfind(STRINGVAR, c, d)) error(EVARIABLE); else a=bmalloc(STRINGVAR, c, d, addrsize+j*(i+strindexsize));
+	if (er != 0) return 0;
+
+/* preserve z.a, this is a side effect of bmalloc and bfind */
+	zt=z.a;
+
+/* set the dimension of the array */
+	z.a=j;
+	setnumber(a+j*(i+strindexsize), addrsize);
+	z.a=zt;
+
+	return a;
+#endif
 	if (er != 0) return 0;
 	return a;
 #else 
@@ -841,9 +988,23 @@ address_t createstring(char c, char d, address_t i) {
 }
 
 /* get a string at position b, the -1+stringdexsize is needed because a string index starts with 1 
-	in addition to the memory pointer, return the address in memory*/
-char* getstring(char c, char d, address_t b) {	
-	address_t k;
+ * 	in addition to the memory pointer, return the address in memory.
+ *	We use a pointer to memory here instead of going through the mem interface with an integer variable
+ *	This makes string code lean to compile but is awkward for systems with serial memory
+ * 
+ * The code may look like doing multiple heap scans for just one string as stringdim and lenstring are
+ * 	called here which causes bfind to called multiple time. This is harmless as bfind caches the last 
+ * 	heap address.
+ * 
+ * Getstring returns a pointer to the first string element in question. 
+ * 
+ * There are two side effects of getstring
+ *	- ax has the address in memory of the string, if the string is on heap. 0 otherwise.
+ *	- z.a has the number of bytes in the string payload area inculding the string length counter
+ */
+
+char* getstring(char c, char d, address_t b, address_t j) {	
+	address_t k, zt, dim, maxlen;
 
 	ax=0;
 	if (DEBUG) { outsc("* get string var "); outch(c); outch(d); outspc(); outnumber(b); outcr(); }
@@ -855,28 +1016,81 @@ char* getstring(char c, char d, address_t b) {
 
 #ifdef HASAPPLE1
 /* special strings */
+    
+/* the time string */
 #if !defined(ARDUINO) || defined(ARDUINORTC)
 	if ( c == '@' && d == 'T') {
 		rtcmkstr();
 		return rtcstring+b;
 	}
 #endif
+    
+/* the arguments string on POSIX systems */
+#ifndef ARDUINO
+    if ( c == '@' && d == 'A' ) {
+        k=0;
+        if (bargc > 1) while(k < SBUFSIZE && bargv[2][k] !=0) { sbuffer[k]=bargv[2][k]; k++; } 
+        return sbuffer+b;
+    }
+#endif
 
 	if ( c == '@') { error(EVARIABLE); return 0;}
 
-/* dynamically allocated strings */
-	if (! (ax=bfind(STRINGVAR, c, d)) ) ax=createstring(c, d, STRSIZEDEF);
+/* dynamically allocated strings, create on the fly */
+	if (!(ax=bfind(STRINGVAR, c, d))) ax=createstring(c, d, STRSIZEDEF, 1);
 
-	if (DEBUG) { outsc("** heap address "); outnumber(ax); outcr(); }
-	if (DEBUG) { outsc("** byte length "); outnumber(z.a); outcr(); }
+	if (DEBUG) {
+		outsc("** heap address "); outnumber(ax); outcr(); 
+		outsc("** byte length "); outnumber(z.a); outcr(); 
+	}
 
 	if (er != 0) return 0;
+
+#ifndef HASSTRINGARRAYS
 
 	if ((b < 1) || (b > z.a-strindexsize )) {
 		error(EORANGE); return 0;
 	}
 
+	ax=ax+strindexsize+(b-1);
+	
+#else 
+
+/* the dimension of the string array */
+
+	zt=z.a;
+	getnumber(ax+z.a-addrsize, addrsize);
+	dim=z.a;
+
+	if ((j < arraylimit) || (j >= dim + arraylimit )) {
+		error(EORANGE); return 0;
+	}
+
+ 	if (DEBUG) { outsc("** string dimension "); outnumber(dim); outcr(); }
+
+/* the max length of a string */
+	maxlen=(zt-addrsize)/dim-strindexsize;
+
+	if ((b < 1) || (b > maxlen )) {
+		error(EORANGE); return 0;
+	}
+
+	if (DEBUG) { outsc("** maximum string length "); outnumber(maxlen); outcr(); }
+	
+/* the base address of a string */
+	ax=ax+(j-arraylimit)*(maxlen + strindexsize);
+
+	if (DEBUG) { outsc("** string base address "); outnumber(ax); outcr(); }
+
+/* get the actual length */
+/*	getnumber(ax, strindexsize); */
+
+/* the address */
 	ax=ax+b-1+strindexsize;
+
+/* leave the string data record length in z.a */
+	z.a=maxlen+strindexsize;
+#endif
 
 	if (DEBUG) { outsc("** payload address address "); outnumber(ax); outcr(); }
 
@@ -895,53 +1109,93 @@ char* getstring(char c, char d, address_t b) {
 #endif
 }
  
-/* this function is currently not used */
-number_t arraydim(char c, char d) {
-	if (c == '@')
-		switch (d) {
-			case 0:
-				return (himem-top)/numsize;
-			case 'E':
-				return elength()/numsize;
-		}
 #ifdef HASAPPLE1
-	return blength(ARRAYVAR, c, d)/numsize;
+/* in case of a string array, this function finds the number 
+	of array elements */
+address_t strarraydim(char c, char d) {
+address_t a, b;
+#ifndef HASSTRINGARRAYS
+	return 1;
 #else 
-	return 0;
+	if ((a=bfind(STRINGVAR, c, d))) {
+		b=z.a; /* the byte length of the objects payload */
+		getnumber(a+b-addrsize, addrsize); /* the dimension of the array is the first number */
+		return z.a;
+	} else 
+		return 1;
 #endif
 }
 
-#ifdef HASAPPLE1
-/* dimension of a string as in DIM a$(100) */ 
-number_t stringdim(char c, char d) {
+/* dimension of a string as in DIM a$(100), only needed on assign! */ 
+address_t stringdim(char c, char d) {
+
+/* input buffer, payload size is buffer -1 as the first byte is length */	
 	if (c == '@') return BUFSIZE-1;
+
+/* length of the payload from the parameters */
+#ifndef HASSTRINGARRAYS
 	else return blength(STRINGVAR, c, d)-strindexsize;
+#else 
+	if (bfind(STRINGVAR, c, d)) {
+		return (z.a-addrsize)/strarraydim(c, d)-strindexsize;
+	} else 
+		return 0;
+#endif
+
 }
 
 /* the length of a string as in LEN(A$) */
-number_t lenstring(char c, char d){
+address_t lenstring(char c, char d, address_t j){
 	char* b;
-	number_t a;
+	address_t a;
 
+/* the input buffer, length is first byte */
 	if (c == '@' && d == 0) return ibuffer[0];
 
+/* the time */
 #if !defined(ARDUINO) || defined(ARDUINORTC) 
 	if (c == '@' && d == 'T') {
 		rtcmkstr();
 		return rtcstring[0];
 	}
 #endif
-
+    
+/* the arguments string on POSIX systems */
+#ifndef ARDUINO
+    if ( c == '@' && d == 'A' ) {
+        a=0;
+        if (bargc > 1) while(a < SBUFSIZE && bargv[2][a] !=0) a++;
+        return a;
+    }
+#endif
+    
+/* locate the string */
 	a=bfind(STRINGVAR, c, d);
 	if (er != 0) return 0;
 
+/* string does not yet exist, return length 0 */
+	if (a == 0) return 0;
+
+/* get the string length from memory */
+#ifndef HASSTRINGARRAYS
 	getnumber(a, strindexsize);
 	return z.a;
+#else 
+	a=a+(stringdim(c, d)+strindexsize)*(j-arraylimit);
+	getnumber(a, strindexsize);
+	return z.a;
+#endif
 }
 
 /* set the length of a string */
-void setstringlength(char c, char d, address_t l) {
-	address_t a; 
+void setstringlength(char c, char d, address_t l, address_t j) {
+	address_t a, zt; 
+	if (DEBUG) {
+		outsc("** setstringlength "); 
+		outch(c); outch(d); 
+		outspc(); outnumber(l); outspc(); outnumber(j);
+		outcr();
+	} 
 
 	if (c == '@') {
 		*ibuffer=l;
@@ -956,37 +1210,25 @@ void setstringlength(char c, char d, address_t l) {
 		return;
 	}
 
+/* error handling at this point wrong and potentially not needed */
+/*
 	if (l < z.a) {
 		z.a=l;
 		setnumber(a, strindexsize);
 	} else
 		error(EORANGE);
 }
+*/
 
-/* inset data into a string, currently unused */
-void setstring(char c, char d, address_t w, char* s, address_t n) {
-	char *b;
-	address_t a;
-	int i;
+/* multiple calls of bfind here is harmless as bfind caches  */ 
+	a=a+(stringdim(c, d)+strindexsize)*(j-arraylimit);
 
-	if (DEBUG) { outsc("* set var string "); outch(c); outch(d); outspc(); outnumber(w); outcr(); }
+	if (DEBUG) { outsc("**  setstringlength writing to "); outnumber(a); outsc(" value "); outnumber(l); outcr(); }
 
-	if (c == '@') {
-		b=ibuffer;
-	} else {
-		if ( !(a=bfind(STRINGVAR, c, d)) ) a=createstring(c, d, STRSIZEDEF);
-		if (er != 0) return;
-		b=(char *)&mem[a+strindexsize];
-	}
-
-	if ((w+n-1) <= stringdim(c, d)) {
-		for (i=0; i<n; i++) { b[i+w]=s[i]; } 
-		z.a=w+n-1;
-		setnumber(a, strindexsize);	
-	}
-	else 
-		error(EORANGE);
+	z.a=l;
+	setnumber(a, strindexsize);
 }
+
 #endif
 
 /*
@@ -1064,6 +1306,7 @@ void error(mem_t e){
 	outspc();
 #endif
 	printmessage(EGENERAL);
+	/* outsc("** at "); outnumber(here); */
 	outcr();
 	clearst();
 	clrforstack();
@@ -1077,7 +1320,7 @@ void reseterror() {
 }
 
 void debugtoken(){
-	outsc("* ");
+	outsc("* "); /* outnumber(here); outsc(" * "); */
 
 	if (token == EOL) {
 		outsc("EOL\n");
@@ -2213,6 +2456,7 @@ void memwrite2(address_t a, mem_t c) {
 
 /* get a token from memory */
 void gettoken() {
+	int i;
 
 /* if we have reached the end of the program, EOL is always returned
 		we don't rely on mem having a trailing EOL */
@@ -2256,11 +2500,11 @@ void gettoken() {
  * the string constant length to the length of the input buffer
  */
 #if defined(USEMEMINTERFACE)
-			for(int i=0; i<x; i++) spistrbuf1[i]=memread(here+i);	
+			for(i=0; i<x; i++) spistrbuf1[i]=memread(here+i);
 			ir=spistrbuf1;
 #else
 			if (st == SERUN) { 					
-				for(int i=0; i<x; i++) ibuffer[i]=memread(here+i);	
+				for(i=0; i<x; i++) ibuffer[i]=memread(here+i);	
 				ir=ibuffer;
 			} else {
 				ir=(char*)&mem[here]; 
@@ -2302,7 +2546,7 @@ void nextline() {
 #if defined(LINECACHESIZE) && LINECACHESIZE>0
 const unsigned char linecachedepth = LINECACHESIZE;
 typedef struct {address_t l; address_t h;} linecacheentry;
-linecacheentry linecache[linecachedepth];
+linecacheentry linecache[LINECACHESIZE];
 unsigned char linecachehere = 0;
 
 void clrlinecache() {
@@ -2641,9 +2885,15 @@ void parsesubscripts() {
 	args=0;
 	if (token != '(') return; /* zero arguments is legal here */
 	nexttoken();
+#ifdef HASMULTIDIM
+	if (token == ')') {
+		args=-1;
+		return; /* () is interpreted as no argument at all -> needed for string arrays */
+	}
+#endif
 	parsearguments();
 	if (er != 0) return; 
-	if (token != ')') {error(EARGS); return; }
+	if (token != ')') {error(EARGS); return; } /* we return with ) as a last token on success */
 }
 
 
@@ -2666,38 +2916,110 @@ void parseoperator(void (*f)()) {
 }
 
 #ifdef HASAPPLE1
-/* substring evaluation, mind the rewinding here - a bit of a hack */
+/* substring evaluation, mind the rewinding here - a bit of a hack 
+ * 	this is one of the few places in the code where the token stream 
+ *  cannot be interpreted forward i.e. without looking back. Reason is 
+ * 	an inconsistency the the way expression() is implemented
+ */
 void parsesubstring() {
 	char xc1, yc1; 
 	address_t h1; /* remember the here */
-	char* bi1;
+	char* bi1;		/* or the postion in the input buffer */
+	mem_t a1; 		/* some info on args remembered as well for multidim */
+	address_t j; 	/* the index of a string array */
 
 /* remember the string name */
 	xc1=xc;
 	yc1=yc;
 
-/* this is a hack - we rewind a token ! */
-  if (st == SINT) bi1=bi; 
-	else h1=here; 
+/* Remember the token before the first parsesubscript */
+  if (st == SINT) bi1=bi; else h1=here; 
 
 	nexttoken();
 	parsesubscripts();
 	if (er != 0) return; 
 
+#ifndef HASSTRINGARRAYS
+
+/* the stack has - the first index, the second index */
 	switch(args) {
 		case 2: 
 			break;
 		case 1:
-			push(lenstring(xc1, yc1));
+			push(lenstring(xc1, yc1, arraylimit));
 			break;
 		case 0: 
-/* this is a hack - we rewind a token !	*/
-			if (st == SINT) bi=bi1;
-			else here=h1; 
+/* rewind the token if there were no braces to be in sync	*/
+			if (st == SINT) bi=bi1; else here=h1; 
+/* no rewind in the () construct */			
+		case -1:
+			args=0;		
 			push(1);
-			push(lenstring(xc1, yc1));	
+			push(lenstring(xc1, yc1, arraylimit));	
 			break;
 	}
+
+#else 
+/* for a string array the situation is more complicated as we 
+ 		need to parse the argument completely including the possible subscript */
+
+/* how many args has the first parsesubsscript scanned, if none, we are done
+	rewind and set the parametes*/
+
+/* the stack has - the first string index, the second string index, the array index */	
+	if ( args == 0 ) {
+
+		if (st == SINT) bi=bi1; else here=h1; 
+
+		j=arraylimit; 
+		push(1);
+		push(lenstring(xc1, yc1, j));	
+		push(j);
+
+/* if more then zero or an empty (), we need a second parsesubscript */
+	} else {
+
+		if (st == SINT) bi1=bi; 
+		else h1=here;
+
+		a1=args;
+
+		nexttoken();
+		parsesubscripts();
+
+		switch (args) {
+			case 1:
+				j=pop();
+				break;
+			case 0:
+				j=arraylimit;
+				if (st == SINT) bi=bi1; else here=h1;
+				break;
+			default:
+				error(EARGS);
+				return;
+		}	
+
+/* which part of the string */
+		switch(a1) {
+			case 2: 
+				break;
+			case 1:
+				push(lenstring(xc1, yc1, j));
+				break;
+			case 0: 	
+			case -1:	
+				push(1);
+				push(lenstring(xc1, yc1, j));	
+				break;
+		}
+
+/* and which index element */
+		push(j);
+
+	}
+#endif
+
 }
 #endif
 
@@ -2829,11 +3151,16 @@ void xpow(){
 /* 
  * stringvalue() evaluates a string value, FALSE if there is no string
  * ir2 has the string location, the stack has the length
- * ax the memory byte address
+ * ax the memory byte address, x is set to the lower index which is a nasty
+ * side effect
  */
 char stringvalue() {
 	mem_t xcl, ycl;
 	address_t k;
+	// int ix, iy;
+
+	if (DEBUG) outsc("** entering stringvalue \n");
+
 	if (token == STRING) {
 		ir2=ir;
 		push(x);
@@ -2847,14 +3174,25 @@ char stringvalue() {
 		ycl=yc;
 		parsesubstring();
 		if (er != 0) return FALSE;
+#ifdef HASSTRINGARRAYS
+		k=pop();
+#else 
+		k=arraylimit;
+#endif
+#ifdef HASFLOAT
+		y=floor(pop());
+		x=floor(pop());
+#else
 		y=pop();
 		x=pop();
-		ir2=getstring(xcl, ycl, x);
-/* when the memory interface is active spistrbuf1 has the string */
+#endif
+		ir2=getstring(xcl, ycl, x, k);
+/* if the memory interface is active spistrbuf1 has the string */
 #ifdef USEMEMINTERFACE
 		ir2=spistrbuf1;
 #endif
-		push(y-x+1);
+		if (y-x+1 > 0) push(y-x+1); else push(0);
+	  if (DEBUG) { outsc("** in stringvalue, length "); outnumber(y-x+1); outsc(" from "); outnumber(x); outspc(); outnumber(y); outcr(); }
 		xc=xcl;
 		yc=ycl;
 	} else if (token == TSTR) {	
@@ -2869,6 +3207,7 @@ char stringvalue() {
 		push(writenumber(sbuffer, pop()));
 #endif
 		ir2=sbuffer;
+		x=1;
 		if (er != 0) return FALSE;
 		if (token != ')') {error(EARGS);return FALSE;	}
 #endif
@@ -2877,6 +3216,7 @@ char stringvalue() {
 	}
 	return TRUE;
 }
+
 
 /*
  * (numerical) evaluation of a string expression, used for 
@@ -3005,12 +3345,12 @@ void factor(){
 			x=pop();
 			xc=pop();
 			yc=pop();
-			array('g', xc, yc, x, 1, &y);	
+			array('g', xc, yc, x, arraylimit, &y);	
 #else
 			switch(args) {
 				case 1:
 					x=pop();
-					y=1;
+					y=arraylimit;
 					break;
 				case 2:
 					y=pop();
@@ -3320,32 +3660,32 @@ void compexpression() {
 		case '=':
 			parseoperator(compexpression);
 			if (er != 0) return;
-			push(x == y);
+			push(x == y ? -1 : 0);
 			break;
 		case NOTEQUAL:
 			parseoperator(compexpression);
 			if (er != 0) return;
-			push(x != y);
+			push(x != y ? -1 : 0);
 			break;
 		case '>':
 			parseoperator(compexpression);
 			if (er != 0) return;
-			push(x > y);
+			push(x > y ? -1 : 0);
 			break;
 		case '<':
 			parseoperator(compexpression);
 			if (er != 0) return;
-			push(x < y);
+			push(x < y ? -1 : 0);
 			break;
 		case LESSEREQUAL:
 			parseoperator(compexpression);
 			if (er != 0) return;
-			push(x <= y);
+			push(x <= y ? -1 : 0);
 			break;
 		case GREATEREQUAL:
 			parseoperator(compexpression);
 			if (er != 0) return;
-			push(x >= y);
+			push(x >= y ? -1 : 0);
 			break;
 	}
 }
@@ -3358,7 +3698,7 @@ void notexpression() {
 		nexttoken();
 		expression();
 		if (er != 0) return;
-		push(!pop());
+		push(~(int)pop());
 	} else 
 		compexpression();
 }
@@ -3485,14 +3825,25 @@ separators:
 /* 
  *	LET assigment code for various lefthand and righthand side. 
  *
+ *
  *	lefthandside is a helper function for reuse in other 
  *	commands. It determines the address the value is to be 
  *	assigned to and whether the assignment target is a 
  *	"pure" i.e. subscriptless string expression
  *
  *	assignnumber assigns a number to a given lefthandside
+ *
+ * in lefthandside the type of the object is determined and 
+ * possible subscripts are parsed
+ * 
+ * Variables have no subscripts. The arguments are unchanged.
+ * Arrays may have two subscript which will go to i, j
+ * Strings may have a string subscript, going to i and an array subscript 
+ * going to j
+ * Strings without a subscript i.e. pure strings, set the ps flag
+ * 
  */
-void lefthandside(address_t* i, address_t* j, mem_t* ps) {
+void lefthandside(address_t* i, address_t* i2, address_t* j, mem_t* ps) {
 	switch (token) {
 		case VARIABLE:
 			nexttoken();
@@ -3505,7 +3856,7 @@ void lefthandside(address_t* i, address_t* j, mem_t* ps) {
 			switch(args) {
 				case 1:
 					*i=pop();
-					*j=1;
+					*j=arraylimit;
 					break;
 				case 2:
 					*j=pop();
@@ -3518,6 +3869,8 @@ void lefthandside(address_t* i, address_t* j, mem_t* ps) {
 			break;
 #ifdef HASAPPLE1
 		case STRINGVAR:
+#ifndef HASSTRINGARRAYS
+			*j=arraylimit;
 			nexttoken();
 			parsesubscripts();
 			if (er != 0) return;
@@ -3531,10 +3884,58 @@ void lefthandside(address_t* i, address_t* j, mem_t* ps) {
 					nexttoken();
 					*i=pop();
 					break;
+				case 2:
+					*ps=FALSE;
+					nexttoken();
+					*i2=pop();
+					*i=pop();
+					break; 
 				default:
 					error(EARGS);
 					return;
 			}
+#else 
+			*j=arraylimit;
+			nexttoken();
+			parsesubscripts();
+			if (er != 0) return;
+			switch(args) {
+				case -1:
+					nexttoken();
+				case 0:
+					*i=1;
+					*ps=TRUE;
+					break;
+				case 1:
+					*ps=FALSE;
+					nexttoken();
+					*i=pop();
+					break;
+				case 2:
+					*ps=FALSE;
+					nexttoken();
+					*i2=pop();
+					*i=pop();
+					break;
+				default:
+					error(EARGS);
+					return;
+			}
+/* we deal with a string array */ 
+			if (token == '(') {
+				parsesubscripts();
+				if (er != 0) return;
+				switch(args) {
+					case 1:
+						*j=pop();
+						nexttoken();
+						break;
+					default:
+						error(EARGS);
+						return;
+				}
+			}
+#endif
 			break;
 #endif
 		default:
@@ -3555,7 +3956,7 @@ void assignnumber(signed char t, char xcl, char ycl, address_t i, address_t j, c
 			break;
 #ifdef HASAPPLE1
 		case STRINGVAR:
-			ir=getstring(xcl, ycl, i);
+			ir=getstring(xcl, ycl, i, j);
 			if (er != 0) return;
 #ifndef USEMEMINTERFACE
 			ir[0]=pop();
@@ -3563,9 +3964,9 @@ void assignnumber(signed char t, char xcl, char ycl, address_t i, address_t j, c
 			if (ir == 0) memwrite2(ax, pop());
 #endif
 			if (ps)
-				setstringlength(xcl, ycl, 1);
+				setstringlength(xcl, ycl, 1, j);
 			else 
-				if (lenstring(xcl, ycl) < i && i <= stringdim(xcl, ycl)) setstringlength(xcl, ycl, i);
+				if (lenstring(xcl, ycl, j) < i && i <= stringdim(xcl, ycl)) setstringlength(xcl, ycl, i, j);
 			break;
 #endif
 	}
@@ -3576,12 +3977,13 @@ void assignnumber(signed char t, char xcl, char ycl, address_t i, address_t j, c
  *	LET - the core assigment function, this is different from other BASICs
  */
 void assignment() {
-	mem_t t;  // remember the left hand side token until the end of the statement, type of the lhs
-	mem_t ps=TRUE;  // also remember if the left hand side is a pure string of something with an index 
-	mem_t xcl, ycl; // to preserve the left hand side variable names
-	address_t i=1; // and the beginning of the destination string  
-	address_t j=1; /* the second dimension of the array */
-	address_t lensource, lendest, newlength;
+	mem_t t;  /* remember the left hand side token until the end of the statement, type of the lhs */
+	mem_t ps=TRUE;  /* also remember if the left hand side is a pure string of something with an index */
+	mem_t xcl, ycl; /* to preserve the left hand side variable names */
+	address_t i=1; /* and the beginning of the destination string */
+	address_t i2=0; /* and the end of the destination string */  
+	address_t j=arraylimit; /* the second dimension of the array */
+	address_t lensource, lendest, newlength, strdim, copybytes;
 	mem_t s;
 	index_t k;
 
@@ -3590,8 +3992,15 @@ void assignment() {
 	xcl=xc;
 	t=token;
 
-	lefthandside(&i, &j, &ps);
+	lefthandside(&i, &i2, &j, &ps);
 	if (er != 0) return;
+
+	if (DEBUG) {
+		outsc("** in assignment lefthandside with ");
+		outnumber(i); outspc();
+		outnumber(j); outspc();
+		outnumber(ps); outcr();
+	}
 
 /* the assignment part */
 	if (token != '=') {
@@ -3634,46 +4043,66 @@ void assignment() {
 			for(k=0; k<SPIRAMSBSIZE; k++) spistrbuf2[k]=ir2[k];
 			ir2=spistrbuf2;
 #endif			
-			ir=getstring(xcl, ycl, i);
+			ir=getstring(xcl, ycl, i, j);
 			if (er != 0) return;
 
 /* the length of the original string */
-			lendest=lenstring(xcl, ycl);
+			lendest=lenstring(xcl, ycl, j);
+
+/* the dimension i.e. the maximum length of the string */
+			strdim=stringdim(xcl, ycl);
 
 			if (DEBUG) {
 				outsc("* assigment stringcode "); outch(xcl); outch(ycl); outcr();
 				outsc("** assignment source string length "); outnumber(lensource); outcr();
 				outsc("** assignment dest string length "); outnumber(lendest); outcr();
-				outsc("** assignment old string length "); outnumber(lenstring(xcl, ycl)); outcr();
+				outsc("** assignment old string length "); outnumber(lenstring(xcl, ycl, 1)); outcr();
 				outsc("** assignment dest string dimension "); outnumber(stringdim(xcl, ycl)); outcr();
 			};
 
-/* does the source string fit into the destination */
-			if ((i+lensource-1) > stringdim(xcl, ycl)) { error(EORANGE); return; }
+/* does the source string fit into the destination if we have no destination second index*/
+			if ((i2 == 0) && ((i+lensource-1) > strdim)) { error(EORANGE); return; };
+
+/* if we have a second index, is it in range */
+			if((i2 !=0) && i2>strdim) { error(EORANGE); return; };
+
+/* caculate the number of bytes we truely want to copy */
+			if (i2 > 0) copybytes=((i2-i+1) > lensource) ? lensource : (i2-i+1); else copybytes=lensource;
 
 /* this code is needed to make sure we can copy one string to the same string 
 	without overwriting stuff, we go either left to right or backwards */
-#ifndef USEMEMINTERFACE			
+#ifndef USEMEMINTERFACE
 			if (x > i) 
-				for (k=0; k<lensource; k++) ir[k]=ir2[k];
+				for (k=0; k<copybytes; k++) ir[k]=ir2[k];
 			else
-				for (k=lensource-1; k>=0; k--) ir[k]=ir2[k]; 
+				for (k=copybytes-1; k>=0; k--) ir[k]=ir2[k]; 
+
 #else
 /* on an SPIRAM system we need to go through the mem interface 
 	for write, if ir is zero i.e. is not a valid memory location */
 			if (ir != 0) {
 				if (x > i) 
-					for (k=0; k<lensource; k++) ir[k]=ir2[k];
+					for (k=0; k<copybytes; k++) ir[k]=ir2[k];
 				else
-					for (k=lensource-1; k>=0; k--) ir[k]=ir2[k]; 
-			} else 
-				for (k=0; k<lensource; k++) memwrite2(ax+k, ir2[k]);
+					for (k=copybytes-1; k>=0; k--) ir[k]=ir2[k]; 
+			} else {
+				for (k=0; k<copybytes; k++) memwrite2(ax+k, ir2[k]);
+			}
+
 #endif
 
-/* classical Apple 1 behaviour is string truncation in substring logic */
-			newlength = i+lensource-1;	
+/* 
+ * classical Apple 1 behaviour is string truncation in substring logic, with
+ * two index destination string we follow another route. We extend the string 
+ * for the number of copied bytes
+ */
+			if (i2 == 0) {
+				newlength = i+lensource-1;	
+			} else {
+				if (i+copybytes > lendest) newlength=i+copybytes-1; else newlength=lendest;
+			} 
 		
-			setstringlength(xcl, ycl, newlength);
+			setstringlength(xcl, ycl, newlength, j);
 			nexttoken();
 			break;
 #endif
@@ -3769,7 +4198,7 @@ nextvariable:
 			token=EOL;
 			goto resetinput;
 		} else {
-			array('s', xcl, ycl, pop(), 1, &xv);
+			array('s', xcl, ycl, pop(), arraylimit, &xv);
 		}
 	}
 #else
@@ -3782,7 +4211,7 @@ nextvariable:
 		switch(args) {
 			case 1:
 				x=pop();
-				y=1; 
+				y=arraylimit; 
 				break;
 			case 2:
 				y=pop();
@@ -3808,7 +4237,7 @@ nextvariable:
 /* strings are not passed through the input buffer but inputed directly 
     in the string memory location, ir after getstring points to the first data byte */
   if (token == STRINGVAR) {
-    ir=getstring(xc, yc, 1); 
+    ir=getstring(xc, yc, 1, arraylimit); 
     if (prompt) showprompt();
     l=stringdim(xc, yc);
 /* the form parameter in WIRE can be used to set the expected number of bytes */
@@ -4085,7 +4514,7 @@ void xnext(){
 	popforstack();
 	if (er != 0) return;
 /* a variable argument in next clears the for stack 
-		down as BASIC programs can and do jump out to a outer next */
+		down as BASIC programs can and do jump out to an outer next */
 	if (xcl) {
 		while (xcl != xc || ycl != yc ) {
 			popforstack();
@@ -4249,12 +4678,18 @@ void xrun(){
 
 /* flush the EEPROM when changing to interactive mode */
 	eflush();
+
+/* if called from command line with file arg - exit after run */
+#ifndef ARDUINO
+    if (bnointafterrun) restartsystem();
+#endif
 }
 
 /*
  * NEW the general cleanup function - new deletes everything
  */
 void xnew(){ 
+
 /* all stacks are purged */
 	clearst();
 	clrgosubstack();
@@ -4291,12 +4726,56 @@ void xrem() {
  *	CLR - clearing variable space
  */
 void xclr() {
+
+#ifdef HASDARKARTS
+	mem_t xcl, ycl, t;
+
+	nexttoken();
+
+	if (termsymbol()) {
+		clrvars();
+		clrgosubstack();
+		clrforstack();
+		clrdata();
+		clrlinecache();
+		ert=0;
+	} else {
+
+		xcl=xc;
+		ycl=yc;
+		t=token;
+
+		switch (t) {
+			case VARIABLE:
+				if (xcl == '@' || ycl == 0) { error(EVARIABLE); return; }
+				break;
+			case ARRAYVAR: 
+				nexttoken();
+				if (token != '(') { error(EVARIABLE); return; }
+				nexttoken();
+				if (token != ')') { error(EVARIABLE); return; }
+				break;
+			case STRINGVAR:
+				if (xcl == '@') { error(EVARIABLE); return; }
+				break;
+			default:
+				error(EVARIABLE);
+				return;
+		}
+
+		ax=bfree(t, xcl, ycl);
+		if (ax == 0) { error(EVARIABLE); return; }
+
+	}
+
+#else
 	clrvars();
 	clrgosubstack();
 	clrforstack();
 	clrdata();
 	clrlinecache();
 	ert=0;
+#endif
 	nexttoken();
 }
 
@@ -4328,13 +4807,12 @@ nextvariable:
 		if (x<=0) {error(EORANGE); return; }
 		if (t == STRINGVAR) {
 			if ( (x>255) && (strindexsize==1) ) {error(EORANGE); return; }
-			(void) createstring(xcl, ycl, x);
+			(void) createstring(xcl, ycl, x, 1);
 		} else {
 			(void) createarray(xcl, ycl, x, 1);
 		}
 #else 
-		if (t == STRINGVAR && args != 1 ) {error(EARGS); return; }
-		if (t == ARRAYVAR && (args != 1 && args != 2)) {error(EARGS); return; }
+		if (args != 1 && args != 2) {error(EARGS); return; }
 
 		x=pop();
 		if (args == 2) {y=x; x=pop(); } else { y=1; }
@@ -4343,11 +4821,12 @@ nextvariable:
 		if (t == STRINGVAR) {
 			if ( (x>255) && (strindexsize==1) ) {error(EORANGE); return; }
 /* running from an SPI RAM means that we need to go through buffers in real memory which 
-	limits string sizes */
+	limits string sizes, this should ne be here but encapsulated, todo after multidim string 
+	implementation is complete */
 #ifdef SPIRAMSBSIZE
 			if (x>SPIRAMSBSIZE-1) {error(EORANGE); return; }
 #endif			
-			(void) createstring(xcl, ycl, x);
+			(void) createstring(xcl, ycl, x, y);
 		} else {
 			(void) createarray(xcl, ycl, x, y);
 		}
@@ -4395,7 +4874,8 @@ void xpoke(){
 }
 
 /*
- *	TAB - spaces command of Apple 1 BASIC
+ *	TAB - spaces command of Apple 1 BASIC 
+ * 		charcount mechanism for relative tab on
  */
 void xtab(){
 	nexttoken();
@@ -4403,6 +4883,11 @@ void xtab(){
 	if (er != 0) return;
 
 	x=pop();
+#ifdef HASMSTAB
+	if (reltab && od == OSERIAL) {
+		if (charcount >= x ) x=0; else x=x-charcount-1;
+	} 
+#endif	
 	while (x-- > 0) outspc();	
 }
 #endif
@@ -4692,6 +5177,7 @@ void xget(){
 	mem_t ps=TRUE;	/* also remember if the left hand side is a pure string of something with an index */
 	mem_t xcl, ycl;	/* to preserve the left hand side variable names	*/
 	address_t i=1;	/* and the beginning of the destination string  	*/
+ 	address_t i2=1; /* and the end of the destination string    */
 	address_t j=1;	/* the second dimension of the array if needed		*/
 	mem_t oid=id;
 
@@ -4715,7 +5201,7 @@ void xget(){
 	t=token;
 
 /* find the indices */
-	lefthandside(&i, &j, &ps);
+	lefthandside(&i, &i2, &j, &ps);
 	if (er != 0) return;
 
 /* get the data */
@@ -4850,6 +5336,19 @@ void xset(){
     case 10:
       dspsetupdatemode(args);
       break;
+/* change the serial device to a true TAB */
+#ifdef HASMSTAB
+    case 11:
+      reltab=args;
+      break;
+#endif
+/* change the lower array limit */
+#ifdef HASARRAYLIMIT
+    case 12:
+      arraylimit=args;
+      break;
+#endif
+
 	}
 }
 
@@ -4940,7 +5439,7 @@ void xtone(){
 	nexttoken();
 	parsearguments();
 	if (er != 0) return;
-	if (args>3 || args<2) {
+	if (args>4 || args<2) {
 		error(EARGS);
 		return;
 	}
@@ -5553,7 +6052,7 @@ void xusr() {
 			push(mqttstat(arg));	
 			break;			
 #endif
-/* access to properties of stream 16 - mqtt */
+/* access to properties of stream 16 - file */
 #ifdef FILESYSTEMDRIVER	
 		case 16: 
 			push(fsstat(arg));	
@@ -5690,7 +6189,8 @@ void xread(){
 	mem_t ps=TRUE;	/* also remember if the left hand side is a pure string of something with an index 	*/
 	mem_t xcl, ycl; /* to preserve the left hand side variable names	*/
 	address_t i=1;  /* and the beginning of the destination string */
-	address_t j=1;	/* the second dimension of the array if needed */
+    address_t i2=0;  /* and the end of the destination string */
+	address_t j=arraylimit;	/* the second dimension of the array if needed */
 	mem_t datat;	/* the type of the data element */
 	address_t lendest, lensource, newlength;
 	int k;
@@ -5705,7 +6205,7 @@ void xread(){
 	if (DEBUG) {outsc("assigning to variable "); outch(xcl); outch(ycl); outsc(" type "); outnumber(t); outcr();}
 
 /* find the indices and draw the next token of read */
-	lefthandside(&i, &j, &ps);
+	lefthandside(&i, &i2, &j, &ps);
 	if (er != 0) return;
 
 /* if the token after lhs is not a termsymbol, something is wrong */
@@ -5727,18 +6227,18 @@ void xread(){
 			ir2=ir;
 			lensource=x;
 
-/* if we use te memory interface we have to save the source */ 
+/* if we use the memory interface we have to save the source */ 
 #ifdef USEMEMINTERFACE
 			for(k=0; k<SPIRAMSBSIZE; k++) spistrbuf2[k]=ir2[k];
 			ir2=spistrbuf2;
 #endif	
 
 /* the destination address of the lefthandside, on the fly create included */
-			ir=getstring(xcl, ycl, i);
+			ir=getstring(xcl, ycl, i, j);
 			if (er != 0) return;
 
 /* the length of the lefthandside string */
-			lendest=lenstring(xcl, ycl);
+			lendest=lenstring(xcl, ycl, j);
 
 			if (DEBUG) {
 				outsc("* read stringcode "); outch(xcl); outch(ycl); outcr();
@@ -5772,7 +6272,7 @@ void xread(){
 /* classical Apple 1 behaviour is string truncation in substring logic */
 			newlength = i+lensource-1;	
 		
-			setstringlength(xcl, ycl, newlength);
+			setstringlength(xcl, ycl, newlength, j);
 			break;
 		default:
 			error(EUNKNOWN);
@@ -6001,7 +6501,7 @@ void statement(){
 				break;
 			case TLET:
 				nexttoken();
-				if ((token != ARRAYVAR) && (token != STRINGVAR) && (token != VARIABLE)){
+				if ((token != ARRAYVAR) && (token != STRINGVAR) && (token != VARIABLE)) {
 					error(EUNKNOWN);
 					break;
 				}
@@ -6033,10 +6533,10 @@ void statement(){
 				xbreak();
 				break;
 			case TSTOP:
-			case TEND:		// return here because new input is needed
-				*ibuffer=0; // clear ibuffer - this is a hack
-				st=SINT;		// switch to interactive mode
-				eflush(); 	// if there is an EEPROM dummy, flush it here (protects flash storage!)
+			case TEND:		/* return here because new input is needed */
+				*ibuffer=0;	/* clear ibuffer - this is a hack */
+				st=SINT;	/* switch to interactive mode */
+				eflush(); 	/* if there is an EEPROM dummy, flush it here (protects flash storage!) */
 				ofileclose();
 				return;
 			case TLIST:		
@@ -6049,7 +6549,7 @@ void statement(){
 				if (st==SRUN || st==SERUN) {
 					xcont();
 					break;
-				}			/* no break here, because interactively CONT=RUN minus CLR */
+				}		/* no break here, because interactively CONT=RUN minus CLR */
 			case TRUN:
 				xrun();
 				return;	
@@ -6256,10 +6756,10 @@ void setup() {
 /* check if there is something to autorun and prepare 
 		the interpreter to got into autorun once loop is reached */
  	if (!autorun()) {
-			printmessage(MGREET); outspc();
-			printmessage(EOUTOFMEMORY); outspc(); 
-			outnumber(memsize+1); outspc();
-			outnumber(elength()); outcr();
+		printmessage(MGREET); outspc();
+		printmessage(EOUTOFMEMORY); outspc(); 
+		outnumber(memsize+1); outspc();
+		outnumber(elength()); outcr();
  	}
 }
 
@@ -6298,7 +6798,7 @@ void loop() {
 	if (token == NUMBER) {
 		storeline();		
 	} else {
- 		//st=SINT;
+ 		/* st=SINT; */
 		statement();   
 		st=SINT;
 	}
@@ -6309,7 +6809,13 @@ void loop() {
 
 /* if we are not on an Arduino */
 #ifndef ARDUINO
-int main(){
+int main(int argc, char* argv[]){
+
+/* save the arguments if there are any */
+    bargc=argc;
+    bargv=argv;
+  
+/* do what an Arduino would do, this loops for every interactive input */
 	setup();
 	while (TRUE)
 		loop();

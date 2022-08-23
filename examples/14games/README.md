@@ -65,7 +65,7 @@ This was a printed library of games in the 70s. Many examples of ultra short BAS
 - Chomp: chomp.bas - avoid to eat the poissoned cockie, no computer player 
 - Hangman: hangman.bas - guess a letter and be hanged step by step
 - Digits: digits.bas - yet another number guessing game
-- Hello: hello.bas - a little dialoge with the computer
+- Hello: hello.bas - a little dialogue with the computer
 - Awari: awari.bas - an African board game
 - Roulette: roulette.bas - roll the ball and bet your money
 - Bug: bug.bas - try to complete your bug before the computer does
@@ -77,6 +77,38 @@ This was a printed library of games in the 70s. Many examples of ultra short BAS
 - Bombardment: bomb.bas - bombarding the enenmy
 - BombsAway: bombsaw.bas - fly a WWII bomber simulation
 - Poker: poker.bas - play a game of poker
+- HighIQ: highiq.bas - a board games 
+- Pizza: pizza.bas - deliver pizza quickly
+- Combat: combat.bas - combat simulation of air force, navy and army
+- OneCheck: onecheck.bas - solitaire like checker game
+- GameOfEvenWins: gevenwin.bas - take pieces from a heap and win if you have an even number
+- Qubic: qubic.bas - 3d tictactoe game
+- Slalom: slalom.bas - a ski slalom simulator, find the optimal speed 
+- Stockmarket: stocks.bas - simulation of the stock market
+- Furtrader: furtrade.bas - simulation of a fur trade business
+- Lem: lem.bas - simulation of a lunar landing
+- Tower: tower.bas - tower of Hanoi game
+- Bounce: bounce.bas - bouncing ball simulation
+- Salvo: salvo.bas - a sea battle 
+- 3DPlot: 3dplot.bas - plot a 3d function
+- Hexapawn: hexapawn.bas - a board game 
+- Checkers: checkers.bas - checkers against the computer
+- Weekday: weekday.bas - show some information on dates
+- Tower: tower.bas - tower of Hanoi game 
+- Civilwar: civilwar.bas - Civil war battle simulation
+- Synonym: synonym.bas - Synonym guessing trainer
+- Bullfight: bullfight.bas - fight a bull
+- Bullseye: bullseye.bas - dart game simulator
+- Mastermind: mastermind.bas - mastermind game 
+- Life: life.bas - game of life
+- Ftball: ftball.bas - football game simulator
+- Horserace: horserace.bas - betting on a horse race
+- Hockey: hockey.bas - Hockey game simulation
+- Football: football.bas - yet another football game simulator
+- LifeForTwo: lifefortwo - a guessing game
+- Animal: animal.bas - guess an animal, the program learns from your guesses
+- SuperStarTrek: superstartrek.bas - a classic, the original startrack game (not fully tested!)
+- SuperStarTrek Instructions: suberstartreckins.bas - learn how to operate the controls in SuperStarTrek
 
 ## BASIC language features
 
@@ -222,6 +254,70 @@ bombsaw.bas: random numbers
 
 poker.bas: DEF FN functions, random numbers, mathematical functions
 
+highiq.bas: multidim arrays 
+
+pizza.bas: string functions, substring, times
+
+combat.bas: integer BASIC type game, uses ON GOTO
+
+onecheck.bas: arrays, elementary BASIC syntax
+
+gevenwin.bas: 2d arrays, elementary BASIC syntax
+
+qubic.bas: full BASIC language set including 2d arrays 
+
+slalom.bas: full BASIC language set, strings and integer conversion
+
+stocks.bas: full BASIC language set, random numbers and arrays 
+
+furtrade.bas: full BASIC language set, random numbers and arrays 
+
+lem.bas: using INSTR and VAL to split strings, standard BASIC language set
+
+tower.bas: use of array vars, modified TAB with MS style behaviour
+
+bouncing.bas: TAB MS style function, arrays
+
+salvo.bas: arrays, splitting strings and numbers with INSTR and VAL
+
+3dplot.bas: math functions, using TAB in MS mode and the respective SET command
+
+hexapawn.bas: functions, boolean expressions and arrays
+
+checkers.bas: multidim arrays, string split with INSTR and VAL, MS style TAB
+
+weekday.bas: arithemtic, printing tables
+
+tower.bas: 2D arrays, MS style TAB command
+
+civilwar.bas: string arrays 
+
+synonym.bas: string arrays, DATA READ
+
+bullfight.bas: arrays, DEF FN functions and random numbers
+
+bullseye.bas: MS style TAB command
+
+mastermind.bas: MS style TAB, string arrays 
+
+life.bas: string arrays and numerical arrays 
+
+ftball.bas: string arrays, DEF FN, READ DATA
+
+horserace.bas: string arrays, MS compatibility settings with SET
+
+hockey.bas: string arrays, MS compatibility settings with SET
+
+football.bas: string arrays, MS compatibility settings with SET
+
+lifefortwo.bas: Arrays, standard BASIC syntax
+
+animal.bas: string arrays, MS compatibility settings with SET, file I/O
+
+superstartrek.bas: everything BASIC has
+
+superstartrekins.bas: strings 
+
 ## Sources
 
 Original programs of the book "BASIC Computer Games"
@@ -232,5 +328,5 @@ The files were taken from http://vintage-basic.net/games.html and ported to Stef
 
 The archive itself was a fork from https://github.com/GReaperEx/bcg.
 
-
+Not all programs are thoroughly tested. Have fun with games from 1975.
 

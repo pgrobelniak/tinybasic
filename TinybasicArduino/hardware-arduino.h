@@ -54,6 +54,7 @@
 	storage ARDUINOEEPROM, ARDUINOSD, ESPSPIFFS
 	sensors ARDUINORTC, ARDUINOWIRE, ARDUINOSENSORS
 	network ARDUINORF24, ARDUNIOMQTT
+  memory ARDUINOSPIRAM
 
 	leave this unset if you use the definitions below
 */
@@ -80,7 +81,7 @@
 #undef ARDUINOETH
 #undef ARDUINOMQTT
 #undef ARDUINOSENSORS
-#undef ARDUINOSPIRAM /* unfinished code, string handling not fully tested */
+#undef ARDUINOSPIRAM 
 #undef STANDALONE
 
 #define ARDUINO_TTGO_T7_V14_Mini32
@@ -247,7 +248,7 @@
 #define ARDUINOEEPROM
 #define ARDUINOVGA
 #define ARDUINOSD
-#define ARDUINOMQTT
+//#define ARDUINOMQTT
 #define SDPIN   13
 #define STANDALONE 
 #endif
@@ -663,6 +664,9 @@ long freememorysize() {
 #ifdef ARDUINOWIRE
   overhead+=128;
 #endif
+#ifdef ARDUINORF24
+  overhead+=128;
+#endif
 #ifdef ARDUINOSD
   overhead+=512;
 #endif
@@ -962,13 +966,17 @@ void fcircle(int x0, int y0, int r) { tft.fillCircle(x0, y0, r); }
 #if defined(ARDUINOVGA) && defined(ARDUINO_TTGO_T7_V14_Mini32) 
 //static fabgl::VGAController VGAController;
 fabgl::VGA16Controller VGAController; // 16 color object with less memory 
-static fabgl::Terminal      Terminal;
+static fabgl::Terminal Terminal;
 static Canvas cv(&VGAController);
 TerminalController tc(&Terminal);
 Color vga_graph_pen = Color::BrightWhite;
-Color vga_graph_brush = Color::Blue;
-Color vga_txt_pen = Color::Yellow;
-Color vga_txt_background = Color::Blue;
+Color vga_graph_brush = Color::Black;
+Color vga_txt_pen = Color::BrightGreen;
+Color vga_txt_background = Color::Black;
+#ifdef HASTONE
+fabgl::SoundGenerator soundGenerator;
+#endif
+
 
 /* this starts the vga controller and the terminal right now */
 void vgabegin() {
@@ -1976,11 +1984,50 @@ void bpulsein() {
 
 void btone(short a) {
   number_t d = 0;
-  if (a == 3) d=pop();
+  number_t v = 100;
+  if (a == 4) v=pop();
+  if (a >= 3) d=pop();
 	x=pop();
 	y=pop();
 #if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_ESP32)
+#if defined(ARDUINO_TTGO_T7_V14_Mini32) 
+/* fabGL soundgenerator code of suggestes by testerrossa
+ * pin numbers below 128 are real arduino pins while 
+ * pin numvers from 128 onwards are sound generator capabilities
+ * this is different from the original code
+ * 
+ * Sound generator capabilities are numbered as follows
+ * 128: Sine wave 
+ * 129: Symmetric square wave 
+ * 130: Sawtooth
+ * 131: Triangle
+ * 132: VIC noise
+ * 133: noise
+ *
+ * 256-511: square wave with variable duty cycle
+ * 
+ */
+  if (x == 0) {
+    soundGenerator.play(false);
+    soundGenerator.clear();
+    return;
+  } 
+  if (a == 2) d=60000;
+  if (y == 128) soundGenerator.playSound(SineWaveformGenerator(), x, d, v); 
+  if (y == 129) soundGenerator.playSound(SquareWaveformGenerator(), x, d, v);
+  if (y == 130) soundGenerator.playSound(SawtoothWaveformGenerator(), x, d, v);
+  if (y == 131) soundGenerator.playSound(TriangleWaveformGenerator(), x, d, v); 
+  if (y == 132) soundGenerator.playSound(VICNoiseGenerator(), x, d, v);
+  if (y == 133) soundGenerator.playSound(NoiseWaveformGenerator(), x, d, v);
+  if (y >= 255 && y < 512 ) {
+      y=y-255;
+      SquareWaveformGenerator sqw;
+      sqw.setDutyCycle(y);
+      soundGenerator.playSound(sqw, x, d, v); 
+  }
+#else
 	return;
+#endif
 #else 
   if (x == 0) {
     noTone(y);
@@ -2557,12 +2604,16 @@ int serialstat(char c) {
 
 /* write to a serial stream */
 void serialwrite(char c) {
+#ifdef HASMSTAB
+  if (c > 31) charcount+=1;
+  if (c == 10) charcount=0;
+#endif
 #ifdef USESPICOSERIAL
 	PicoSerial.print(c);
 #else
 /* write never blocks. discard any bytes we can't get rid of */
   Serial.write(c);  
-  // if (Serial.availableForWrite()>0) Serial.write(c);	
+/* if (Serial.availableForWrite()>0) Serial.write(c);	*/
 #endif
 }
 
@@ -2832,11 +2883,12 @@ RF24 radio(rf24_ce, rf24_csn);
 int radiostat(char c) {
 #if defined(ARDUINORF24)
   if (c == 0) return 1;
+  if (c == 1) return radio.isChipConnected();
 #endif
   return 0; 
 }
 
-/* generate a uint64_t pipe address from the filename string for RF64 */
+/* generate a uint64_t pipe address from the filename string for RF24 */
 uint64_t pipeaddr(char * f){
 	uint64_t t = 0;
 	t=(uint8_t)f[0];
@@ -2873,7 +2925,7 @@ void radioins(char *b, short nb) {
 void radioouts(char *b, short l) {
 #ifdef ARDUINORF24
 	radio.stopListening();
-	if (radio.write(b, l)) ert=0; else ert=1;
+	if (!radio.write(b, l)) ert=1;
 	radio.startListening();
 #endif
 }
@@ -2894,7 +2946,7 @@ short radioavailable() {
  */
 void iradioopen(char *filename) {
 #ifdef ARDUINORF24
-	radio.begin();
+	if (!radio.begin()) ert=1;
 	radio.openReadingPipe(1, pipeaddr(filename));
 	radio.startListening();
 #endif
@@ -2902,7 +2954,7 @@ void iradioopen(char *filename) {
 
 void oradioopen(char *filename) {
 #ifdef ARDUINORF24
-	radio.begin();
+	if (!radio.begin()) ert=1;
 	radio.openWritingPipe(pipeaddr(filename));
 #endif
 }
@@ -3086,6 +3138,26 @@ mem_t spiram_rwbufferclean = 1;
 const address_t spiram_addrmask=0xffe0;
 /* const address_t spiram_addrmask=0xffd0; // 64 byte frame */
 
+/* the elementary buffer access functions used almost everywhere */
+
+void spiram_bufferread(address_t a, mem_t* b, address_t l) {
+  digitalWrite(RAMPIN, LOW);
+  SPI.transfer(SPIRAMREAD);
+  SPI.transfer((byte)(a >> 8));
+  SPI.transfer((byte)a);
+  SPI.transfer(b, l);
+  digitalWrite(RAMPIN, HIGH);
+} 
+
+void spiram_bufferwrite(address_t a, mem_t* b, address_t l) {
+  digitalWrite(RAMPIN, LOW); 
+  SPI.transfer(SPIRAMWRITE);
+  SPI.transfer((byte)(a >> 8));
+  SPI.transfer((byte)a);
+  SPI.transfer(b, l);
+  digitalWrite(RAMPIN, HIGH);
+}
+
 mem_t spiram_robufferread(address_t a) {
 /* we address a byte known to the rw buffer, then get it from there */
   if (spiram_rwbuffervalid && ((a & spiram_addrmask) == spiram_rwbufferaddr)) {
@@ -3094,12 +3166,7 @@ mem_t spiram_robufferread(address_t a) {
   
 /* page fault, we dont have the byte in the ro buffer, so read from the chip*/
   if (!spiram_robuffervalid || a >= spiram_robufferaddr + spiram_robuffersize || a < spiram_robufferaddr ) {
-      digitalWrite(RAMPIN, LOW);
-      SPI.transfer(SPIRAMREAD);
-      SPI.transfer((byte)(a >> 8));
-      SPI.transfer((byte)a);
-      SPI.transfer(spiram_robuffer, spiram_robuffersize);
-      digitalWrite(RAMPIN, HIGH);
+      spiram_bufferread(a, spiram_robuffer, spiram_robuffersize);
       spiram_robufferaddr=a;
       spiram_robuffervalid=1;
   }
@@ -3109,12 +3176,7 @@ mem_t spiram_robufferread(address_t a) {
 /* flush the buffer */
 void spiram_rwbufferflush() {
   if (!spiram_rwbufferclean) {
-    digitalWrite(RAMPIN, LOW); 
-    SPI.transfer(SPIRAMWRITE);
-    SPI.transfer((byte)(spiram_rwbufferaddr >> 8));
-    SPI.transfer((byte)spiram_rwbufferaddr);
-    SPI.transfer(spiram_rwbuffer, spiram_rwbuffersize);
-    digitalWrite(RAMPIN, HIGH);
+    spiram_bufferwrite(spiram_rwbufferaddr, spiram_rwbuffer, spiram_rwbuffersize);
     spiram_rwbufferclean=1;
    }
 }
@@ -3126,12 +3188,7 @@ mem_t spiram_rwbufferread(address_t a) {
 /* flush the buffer if needed */
     spiram_rwbufferflush();
 /* and reload it */
-    digitalWrite(RAMPIN, LOW);
-    SPI.transfer(SPIRAMREAD);
-    SPI.transfer((byte)(p >> 8));
-    SPI.transfer((byte)p);
-    SPI.transfer(spiram_rwbuffer, spiram_rwbuffersize);
-    digitalWrite(RAMPIN, HIGH);
+    spiram_bufferread(p, spiram_rwbuffer, spiram_rwbuffersize);
     spiram_rwbufferaddr = p; /* we only handle full pages here */
     spiram_rwbuffervalid=1;
   }

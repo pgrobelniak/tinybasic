@@ -1,26 +1,26 @@
 /*
-
-	$Id: hardware-posix.h,v 1.3 2022/06/28 15:09:40 stefan Exp stefan $
-
-	Stefan's basic interpreter 
-
-	Playing around with frugal programming. See the licence file on 
-	https://github.com/slviajero/tinybasic for copyright/left.
-    (GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007)
-
-	Author: Stefan Lenz, sl001@serverfabrik.de
-
-	Hardware definition file coming with basic.c aka TinybasicArduino.ino
-
-	Link to some of the POSIX OS features to mimic a microcontroller platform
-	See hardware-arduino for more details on the interface.
-
-	Supported: filesystem, real time clock, (serial) I/O on the text console
-	Not supported: radio, wire, SPI, MQTT
-
-	Partially supported: Wiring library on Raspberry PI
-
-*/
+ *
+ * $Id: hardware-posix.h,v 1.4 2022/08/15 18:08:56 stefan Exp stefan $
+ *
+ *	Stefan's basic interpreter 
+ *
+ *	Playing around with frugal programming. See the licence file on 
+ *	https://github.com/slviajero/tinybasic for copyright/left.
+ *	(GNU GENERAL PUBLIC LICENSE, Version 3, 29 June 2007)
+ *
+ *	Author: Stefan Lenz, sl001@serverfabrik.de
+ *
+ *	Hardware definition file coming with basic.c aka TinybasicArduino.ino
+ *
+ *	Link to some of the POSIX OS features to mimic a microcontroller platform
+ *	See hardware-arduino for more details on the interface.
+ *
+ *	Supported: filesystem, real time clock, (serial) I/O on the text console
+ *	Not supported: radio, wire, SPI, MQTT
+ *
+ *	Partially supported: Wiring library on Raspberry PI
+ *
+ */
 
 /* simulates SPI RAM, only test code, keep undefed if you don't want to do something special */
 #undef SPIRAMSIMULATOR
@@ -284,7 +284,7 @@ void pinm(number_t p, number_t m){
 void delay(number_t t) {usleep(t*1000);}
 #endif
 // ms style stuff
-#if defined(MINGW) || defined(MSDOS)
+#if defined(MINGW)
 void delay(number_t t) {Sleep(t);}
 #endif
 
@@ -440,7 +440,13 @@ int serialstat(char c) {
   if (c == 1) return serial_baudrate;
   return 0;
 }
-void serialwrite(char c) { putchar(c); }
+void serialwrite(char c) { 
+#ifdef HASMSTAB
+	if (c > 31) charcount+=1;
+	if (c == 10) charcount=0;
+#endif
+	putchar(c); 
+}
 char serialread() { return getchar(); }
 short serialcheckch(){ return TRUE; }
 short serialavailable() {return TRUE; }
@@ -524,10 +530,10 @@ address_t spirambegin() {
 }
 
 /* the simple unbuffered byte write, with a cast to signed char */
-void spiramrawwrite(address_t a, mem_t c) { spiram[a]=c;}
+void spiramrawwrite(address_t a, mem_t c) {spiram[a]=c;}
 
 /* the simple unbuffered byte read, with a cast to signed char */
-mem_t spiramrawread(address_t a) { return spiram[a]; }
+mem_t spiramrawread(address_t a) {return spiram[a];}
 
 /* the buffers calls, also only simulated here */
 

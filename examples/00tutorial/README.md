@@ -22,6 +22,7 @@ The Apple 1 language set has arrays, strings and a number of additional commands
 - String1: string1.bas - string constants and variables
 - String2: string2.bas - substrings, splitting and concatenating
 - String3: string3.bas - characters and strings
+- String4: string4.bas - string arrays 
 - Logic: logic.bas - boolean expressions
 - Parable: parable.bas - draws a parable using TAB to format output
 
@@ -75,6 +76,7 @@ This language set has a few functions for low level access to the interpreter me
 
 - Malloc: malloc.bas - allocate memory and find it by identifier
 - Eval: eval.bas - plot a function
+- ClrVar: clrvar.bas - delete heap objects
 
 ### IoT Extensions 
 

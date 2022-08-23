@@ -22,11 +22,11 @@ As the language has become fairly large and complex (10000 lines of C source cod
 
 13wire shows the properties of the I2C interface commands in BASIC. Again, some of the Arduino examples of Wire have been ported. Other example programs have been added.
 
-14games are examples from David Ahl's legendary book 101 BASIC computer games. This is work to be done.
+14games are examples from David Ahl's legendary book 101 BASIC computer games. All games have been ported now.
 
-(More will come here over time)
+15radio are examples for the use of the RF2401 radio interface.
 
-96iot.99unfinished are unfinished test programs and work in progress.
+16mqtt are examples for the MQTT code.
 
 ## Main differences between BASIC and other BASIC dialects.
 
@@ -50,3 +50,4 @@ The commands EVAL, MALLOC, and FIND are the dark arts of BASIC programming. It a
 
 SET, CALL and USR access low level features of the interpreter. These commands can be extended to integrate own code.
 
+Arrays can be 2d, string arrays 1d. 
