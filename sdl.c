@@ -53,14 +53,8 @@ void createChar(Uint32 *raster, int c) {
     for(i = 0; i < 8; i++) {
         for(j = 0; j < 7; j++) {
             if(chr[i]&(0100>>j)) {
-                Col col;
-                col.r = 255;
-                col.g = 255;
-                col.b = 255;
-                col.a = 255;
-                d[(i*2)*CHAR_WIDTH + j] = col;
-                d[(i*2+1)*CHAR_WIDTH + j] = col;
-                //d[i*CHAR_WIDTH + j] = col;
+                raster[(i*2)*CHAR_WIDTH+j]=0xFFFFFFFF;
+                raster[(i*2+1)*CHAR_WIDTH+j]=0xFFFFFFFF;
             }
         }
     }
