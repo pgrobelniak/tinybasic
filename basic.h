@@ -85,7 +85,7 @@ typedef unsigned char uint8_t;
 #define LINECACHESIZE	16
 #endif
 /* more duffers and vars */
-#define SBUFSIZE		82//32
+#define SBUFSIZE		32
 #define VARSIZE			26
 /* default sizes of arrays and strings if they are not DIMed */
 #define ARRAYSIZEDEF	10
