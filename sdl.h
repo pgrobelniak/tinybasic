@@ -34,6 +34,7 @@ Uint32 term_userev;
 Pen term_pen;
 volatile int term_interactive = 0;
 char term_lastkey = 0;
+char term_mode = 0;
 
 int term_run = 1;
 
@@ -182,6 +183,11 @@ void fcircle(int x0, int y0, int r) {
     draw();
 }
 
+void dspsetupdatemode(char c) {
+    term_mode = c;
+    draw();
+}
+
 void create_font() {
     Uint32 *raster = malloc(CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
     for(int i = 0; i < 128; i++) {
@@ -245,7 +251,9 @@ void draw() {
             }
         }
     }
-    SDL_RenderPresent(term_renderer);
+    if (!term_mode) {
+        SDL_RenderPresent(term_renderer);
+    }
 }
 
 void scroll() {

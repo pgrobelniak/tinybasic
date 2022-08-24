@@ -108,7 +108,7 @@ void spibegin() {}
  */
 const int dsp_rows=0;
 const int dsp_columns=0;
-void dspsetupdatemode(char c) {}
+
 void dspwrite(char c){};
 void dspbegin() {};
 int dspstat(char c) {return 0; }
@@ -121,6 +121,7 @@ void plot(int x, int y) {}
 void line(int x0, int y0, int x1, int y1)   {}
 void rect(int x0, int y0, int x1, int y1)   {}
 #ifndef SDL
+void dspsetupdatemode(char c) {}
 void rgbcolor(int r, int g, int b) {}
 void frect(int x0, int y0, int x1, int y1)  {}
 void fcircle(int x0, int y0, int r) {}
