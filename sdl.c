@@ -15,9 +15,9 @@
 #define WINDOW_WIDTH TERM_WIDTH*CHAR_WIDTH // 640
 #define WINDOW_HEIGHT TERM_HEIGHT*CHAR_HEIGHT // 480
 
-typedef struct Col Col;
-struct Col {
-	Uint8 a, b, g, r;
+typedef struct Pen Pen;
+struct Pen {
+	Uint8 r, g, b
 };
 
 SDL_Window *window;
@@ -25,7 +25,7 @@ SDL_Renderer *renderer;
 SDL_Texture *fonttex[128];
 SDL_Texture *canvas;
 char fb[TERM_HEIGHT][TERM_WIDTH];
-Col fbc[TERM_HEIGHT][TERM_WIDTH];
+Pen fbc[TERM_HEIGHT][TERM_WIDTH];
 int curx = 0;
 int cury = 0;
 int shift = 0;
@@ -33,12 +33,7 @@ int ctrl = 0;
 int blink = 0;
 Uint32 userevent;
 int run = 1;
-int pr = 255;
-int pg = 255;
-int pb = 0;
-int br = 0;
-int bg = 0;
-int bb = 255;
+Pen pen;
 volatile int interactive = 0;
 
 int term_running() {
@@ -49,7 +44,6 @@ void createChar(Uint32 *raster, int c) {
     int i, j;
     Uint8 *chr = &vt52rom[c*8];
     memset(raster, 0, CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
-    Col *d = (Col*)raster;
     for(i = 0; i < 8; i++) {
         for(j = 0; j < 7; j++) {
             if(chr[i]&(0100>>j)) {
@@ -93,9 +87,7 @@ void term_clear() {
     for(int x = 0; x < TERM_WIDTH; x++) {
         for(int y = 0; y < TERM_HEIGHT; y++) {
             fb[y][x] = ' ';
-            fbc[y][x].r = pr;
-            fbc[y][x].g = pg;
-            fbc[y][x].b = pb;
+            fbc[y][x] = pen;
         }
     }
 }
@@ -114,7 +106,10 @@ void term_setup() {
     userevent = SDL_RegisterEvents(1);
     canvas = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
     SDL_SetRenderTarget(renderer, canvas);
-    SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+    pen.r = 255;
+    pen.g = 255;
+    pen.b = 0;
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
     term_clear();
@@ -123,23 +118,27 @@ void term_setup() {
 
 void draw() {
     int x, y, c;
+    Pen p;
     SDL_Rect r;
     r.x = 0;
     r.y = 0;
     r.w = CHAR_WIDTH * SCALE;
     r.h = CHAR_HEIGHT * SCALE;
-    SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
     SDL_RenderClear(renderer);
+
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderCopy(renderer, canvas, NULL, NULL);
-    SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
+    SDL_SetRenderDrawColor(renderer, pen.r, pen.g, pen.b, 255);
     for(x = 0; x < TERM_WIDTH; x++) {
         for(y = 0; y < TERM_HEIGHT; y++) {
             c = fb[y][x];
+            p = fbc[y][x];
             if(c < 128) {
                 r.x = (x * CHAR_WIDTH * SCALE);
                 r.y = (y * CHAR_HEIGHT * SCALE);
-                SDL_SetTextureColorMod(fonttex[c], fbc[y][x].r, fbc[y][x].g, fbc[y][x].b);
+                SDL_SetTextureColorMod(fonttex[c], p.r, p.g, p.b);
                 SDL_RenderCopy(renderer, fonttex[c], NULL, &r);
             }
             if (blink && x == curx && y == cury) {
@@ -153,9 +152,9 @@ void draw() {
 }
 
 void rgbcolor(int r, int g, int b) {
-    pr = r;
-    pg = g;
-    pb = b;
+    pen.r = r;
+    pen.g = g;
+    pen.b = b;
 }
 
 void frect(int x0, int y0, int x1, int y1)  {
@@ -165,7 +164,7 @@ void frect(int x0, int y0, int x1, int y1)  {
     rect.w = x1 - x0;
     rect.h = y1 - y0;
     SDL_SetRenderTarget(renderer, canvas);
-    SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
+    SDL_SetRenderDrawColor(renderer, pen.r, pen.g, pen.b, 255);
     SDL_RenderFillRect(renderer, &rect);
     SDL_SetRenderTarget(renderer, NULL);
     draw();
@@ -181,9 +180,7 @@ void scroll() {
     }
     for(x = 0; x < TERM_WIDTH; x++) {
         fb[TERM_HEIGHT-1][x] = ' ';
-        fbc[TERM_HEIGHT-1][x].r = pr;
-        fbc[TERM_HEIGHT-1][x].g = pg;
-        fbc[TERM_HEIGHT-1][x].b = pb;
+        fbc[TERM_HEIGHT-1][x] = pen;
     }
 }
 
@@ -209,21 +206,15 @@ void backSpace() {
     if (curx < 0) {
         moveLeft();
         fb[cury][curx] = ' ';
-        fbc[cury][curx].r = pr;
-        fbc[cury][curx].b = pb;
-        fbc[cury][curx].g = pg;
+        fbc[cury][curx] = pen;
     } else {
         for (int x = curx; x < TERM_WIDTH; x++) {
             if (x == (TERM_WIDTH-1)) {
                 fb[cury][x] = ' ';
-                fbc[cury][x].r = pr;
-                fbc[cury][x].g = pg;
-                fbc[cury][x].b = pb;
+                fbc[cury][x] = pen;
             } else {
                 fb[cury][x] = fb[cury][x+1];
-                fbc[cury][x].r = fbc[cury][x+1].r;
-                fbc[cury][x].g = fbc[cury][x+1].g;
-                fbc[cury][x].b = fbc[cury][x+1].b;
+                fbc[cury][x] = fbc[cury][x+1];
             }
         }
     }
@@ -268,9 +259,7 @@ void term_putchar(char key) {
         backSpace();
     } else {
         fb[cury][curx]=key;
-        fbc[cury][curx].r=pr;
-        fbc[cury][curx].g=pg;
-        fbc[cury][curx].b=pb;
+        fbc[cury][curx] = pen;
         moveRight();
     }
     draw();
