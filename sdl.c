@@ -124,10 +124,6 @@ void draw() {
     r.y = 0;
     r.w = CHAR_WIDTH * SCALE;
     r.h = CHAR_HEIGHT * SCALE;
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-    SDL_RenderClear(renderer);
-
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderCopy(renderer, canvas, NULL, NULL);
     SDL_SetRenderDrawColor(renderer, pen.r, pen.g, pen.b, 255);
@@ -243,8 +239,6 @@ void moveRight() {
     }
 }
 
-int enter = -1;
-
 void term_putchar(char key) {
     if (key == 12) {
         term_clear();
@@ -265,7 +259,15 @@ void term_putchar(char key) {
     draw();
 }
 
-void keydown(SDL_Scancode scancode, int repeat) {
+void putCurrentLineInBuffer(char *buffer) {
+    buffer[0] = TERM_WIDTH;
+    for (int i = 0; i < TERM_WIDTH; i++) {
+        buffer[i+1]=fb[cury][i];
+    }
+    buffer[TERM_WIDTH+2]=0;
+}
+
+int keydown(SDL_Scancode scancode, char *buffer) {
     switch(scancode) {
         case SDL_SCANCODE_LSHIFT:
         case SDL_SCANCODE_RSHIFT:
@@ -277,14 +279,9 @@ void keydown(SDL_Scancode scancode, int repeat) {
             ctrl = 1;
             return;
         case SDL_SCANCODE_RETURN:
-            curx=0;
-            cury++;
-            if (cury == TERM_HEIGHT) {
-                scroll();
-                cury = TERM_HEIGHT-1;
-            }
-            enter = cury - 1;
-            return;
+            putCurrentLineInBuffer(buffer);
+            interactive = 0;
+            break;
         case SDL_SCANCODE_BACKSPACE:
             backSpace();
             return;
@@ -302,9 +299,6 @@ void keydown(SDL_Scancode scancode, int repeat) {
             return;
         default:
             break;
-    }
-    if(scancode == SDL_SCANCODE_F11 && !repeat) {
-        toggleFullscreen();
     }
     char *keys = scancodemap[scancode];
     if(keys == NULL) {
@@ -333,31 +327,21 @@ void keyup(SDL_Scancode scancode) {
     }
 }
 
-void consins(char *b, short nb) {
+void consins(char *buffer, short nb) {
     interactive = 1;
     SDL_Event ev;
-    while(run && SDL_WaitEvent(&ev) >= 0) {
+    while(interactive && run && SDL_WaitEvent(&ev) >= 0) {
         switch(ev.type){
             case SDL_QUIT:
                 run = 0;
                 break;
             case SDL_KEYDOWN:
-                keydown(ev.key.keysym.scancode, ev.key.repeat);
+                keydown(ev.key.keysym.scancode, buffer);
                 break;
             case SDL_KEYUP:
                 keyup(ev.key.keysym.scancode);
                 break;
         }
         draw();
-        if (enter != -1) {
-            b[0] = TERM_WIDTH;
-            for (int i = 0; i < TERM_WIDTH; i++) {
-                b[i+1]=fb[enter][i];
-            }
-            b[TERM_WIDTH+2]=0;
-            enter = -1;
-            break;
-        }
     }
-    interactive = 0;
 }
