@@ -30,7 +30,7 @@ int term_cury = 0;
 int term_shift = 0;
 int term_ctrl = 0;
 int term_blink = 0;
-Uint32 term_usrevt;
+Uint32 term_userev;
 Pen term_pen;
 volatile int term_interactive = 0;
 char term_lastkey = 0;
@@ -40,7 +40,7 @@ int term_run = 1;
 int blink_thread(void *arg) {
     SDL_Event ev;
     memset(&ev, 0, sizeof(ev));
-    ev.type = term_usrevt;
+    ev.type = term_userev;
     while(term_run) {
         term_blink = !term_blink;
         SDL_Delay(500);
@@ -63,7 +63,7 @@ void term_setup() {
     SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
     SDL_RenderClear(term_renderer);
     SDL_SetRenderTarget(term_renderer, NULL);
-    term_usrevt = SDL_RegisterEvents(1);
+    term_userev = SDL_RegisterEvents(1);
     SDL_CreateThread(blink_thread, "Blink", (void*)NULL);
     create_font();
     term_pen.r = 255;
@@ -85,7 +85,7 @@ void term_putchar(char key) {
     } else if (key == '\b') {
         handle_backspace();
     } else {
-        term_chars[term_cury][term_curx]=key;
+        term_chars[term_cury][term_curx] = key;
         term_colors[term_cury][term_curx] = term_pen;
         move_cursor_right();
     }
@@ -117,7 +117,7 @@ short serialcheckch() {
 
 char serialread() {
     char key = term_lastkey;
-    if (term_lastkey == 0) {
+    if (key == 0) {
         key = serialcheckch();
     }
     term_lastkey = 0;
@@ -133,8 +133,9 @@ void consins(char *buffer, short nb) {
                 term_run = 0;
                 break;
             case SDL_KEYDOWN:
-                if (!handle_control_keydown(ev.key.keysym.scancode) && !handle_cursor_keys(ev.key.keysym.scancode)) {
-                    char key = decode_scancode(ev.key.keysym.scancode);
+                SDL_Scancode scancode = ev.key.keysym.scancode;
+                if (!handle_control_keydown(scancode) && !handle_cursor_keys(scancode)) {
+                    char key = decode_scancode(scancode);
                     handle_interactive_mode(key, buffer, nb);
                 }
                 break;
@@ -165,6 +166,17 @@ void frect(int x0, int y0, int x1, int y1)  {
     draw();
 }
 
+void create_font() {
+    Uint32 *raster = malloc(CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
+    for(int i = 0; i < 128; i++) {
+        create_char(raster, i);
+        term_font[i] = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, CHAR_WIDTH, CHAR_HEIGHT);
+        SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_ADD);
+        SDL_UpdateTexture(term_font[i], NULL, raster, CHAR_WIDTH*sizeof(Uint32));
+        SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_BLEND);
+    }
+}
+
 void create_char(Uint32 *raster, int c) {
     Uint8 *chr = &vt52rom[c*8];
     memset(raster, 0, CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
@@ -175,17 +187,6 @@ void create_char(Uint32 *raster, int c) {
                 raster[(i*2+1)*CHAR_WIDTH+j]=0xFFFFFFFF;
             }
         }
-    }
-}
-
-void create_font() {
-    Uint32 *raster = malloc(CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
-    for(int i = 0; i < 128; i++) {
-        create_char(raster, i);
-        term_font[i] = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, CHAR_WIDTH, CHAR_HEIGHT);
-        SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_ADD);
-        SDL_UpdateTexture(term_font[i], NULL, raster, CHAR_WIDTH*sizeof(Uint32));
-        SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_BLEND);
     }
 }
 
@@ -249,7 +250,7 @@ void move_cursor_left() {
     if (term_curx < 0) {
         term_curx = TERM_WIDTH - 1;
         term_cury--;
-        if (term_cury<0) {
+        if (term_cury < 0) {
             term_cury = 0;
             term_curx = 0;
         }
