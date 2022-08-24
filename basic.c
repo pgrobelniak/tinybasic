@@ -6822,11 +6822,11 @@ int main(int argc, char* argv[]){
 /* save the arguments if there are any */
     bargc=argc;
     bargv=argv;
-  
+
 /* do what an Arduino would do, this loops for every interactive input */
 	setup();
 #ifdef SDL
-	while (term_running())
+	while (term_run)
 #else
 	while(TRUE)
 #endif

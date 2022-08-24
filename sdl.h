@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <SDL.h>
 
 #include "scancodes.h"
@@ -20,137 +19,117 @@ struct Pen {
 	Uint8 r, g, b
 };
 
-SDL_Window *window;
-SDL_Renderer *renderer;
-SDL_Texture *fonttex[128];
-SDL_Texture *canvas;
-char fb[TERM_HEIGHT][TERM_WIDTH];
-Pen fbc[TERM_HEIGHT][TERM_WIDTH];
-int curx = 0;
-int cury = 0;
-int shift = 0;
-int ctrl = 0;
-int blink = 0;
-Uint32 userevent;
-int run = 1;
-Pen pen;
-volatile int interactive = 0;
+int term_run = 1;
 
-int term_running() {
-    return run;
-}
+SDL_Window *term_window;
+SDL_Renderer *term_renderer;
+SDL_Texture *term_font[128];
+SDL_Texture *term_canvas;
+char term_chars[TERM_HEIGHT][TERM_WIDTH];
+Pen term_colors[TERM_HEIGHT][TERM_WIDTH];
+int term_curx = 0;
+int term_cury = 0;
+int term_shift = 0;
+int term_ctrl = 0;
+int term_blink = 0;
+Uint32 term_usrevt;
+Pen term_pen;
+volatile int term_interactive = 0;
+char term_lastkey = 0;
 
-void createChar(Uint32 *raster, int c) {
-    int i, j;
-    Uint8 *chr = &vt52rom[c*8];
-    memset(raster, 0, CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
-    for(i = 0; i < 8; i++) {
-        for(j = 0; j < 7; j++) {
-            if(chr[i]&(0100>>j)) {
-                raster[(i*2)*CHAR_WIDTH+j]=0xFFFFFFFF;
-                raster[(i*2+1)*CHAR_WIDTH+j]=0xFFFFFFFF;
-            }
-        }
-    }
-}
-
-void createFont() {
-    int w = CHAR_WIDTH;
-    int h = CHAR_HEIGHT;
-    Uint32 *raster = malloc(w*h*sizeof(Uint32));
-    for(int i = 0; i < 128; i++) {
-        createChar(raster, i);
-        fonttex[i] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, w, h);
-        SDL_SetTextureBlendMode(fonttex[i], SDL_BLENDMODE_ADD);
-        SDL_UpdateTexture(fonttex[i], NULL, raster, w*sizeof(Uint32));
-        SDL_SetTextureBlendMode(fonttex[i], SDL_BLENDMODE_BLEND);
-    }
-}
-
-int blinkThread(void *arg) {
+int blink_thread(void *arg) {
     SDL_Event ev;
     memset(&ev, 0, sizeof(ev));
-    ev.type = userevent;
-    while(run) {
-        blink = !blink;
+    ev.type = term_usrevt;
+    while(term_run) {
+        term_blink = !term_blink;
         SDL_Delay(500);
-        if (interactive) {
+        if (term_interactive) {
             SDL_PushEvent(&ev);
         }
     }
     return 0;
 }
 
-void term_clear() {
-    curx = 0;
-    cury = 0;
-    for(int x = 0; x < TERM_WIDTH; x++) {
-        for(int y = 0; y < TERM_HEIGHT; y++) {
-            fb[y][x] = ' ';
-            fbc[y][x] = pen;
-        }
-    }
-}
-
 void term_setup() {
-    SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_WindowFlags flags = SDL_WINDOW_OPENGL;
-    if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH * SCALE, WINDOW_HEIGHT * SCALE, flags, &window, &renderer) < 0) {
+    SDL_Init(SDL_INIT_VIDEO);
+    if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH*SCALE, WINDOW_HEIGHT*SCALE, SDL_WINDOW_OPENGL, &term_window, &term_renderer) < 0) {
         fprintf(stderr, "%s\n", SDL_GetError());
         exit(1);
     }
-    SDL_SetWindowTitle(window, "Vortex");
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-    SDL_SetHint("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0");
-    createFont();
-    userevent = SDL_RegisterEvents(1);
-    canvas = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
-    SDL_SetRenderTarget(renderer, canvas);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-    pen.r = 255;
-    pen.g = 255;
-    pen.b = 0;
-    SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, NULL);
+    SDL_SetWindowTitle(term_window, "Basic");
+    term_canvas = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
+    SDL_SetRenderTarget(term_renderer, term_canvas);
+    SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
+    SDL_RenderClear(term_renderer);
+    SDL_SetRenderTarget(term_renderer, NULL);
+    term_usrevt = SDL_RegisterEvents(1);
+    SDL_CreateThread(blink_thread, "Blink", (void*)NULL);
+    create_font();
+    term_pen.r = 255;
+    term_pen.g = 255;
+    term_pen.b = 0;
     term_clear();
-    SDL_CreateThread(blinkThread, "Blink", (void*)NULL);
 }
 
-void draw() {
-    int x, y, c;
-    Pen p;
-    SDL_Rect r;
-    r.x = 0;
-    r.y = 0;
-    r.w = CHAR_WIDTH * SCALE;
-    r.h = CHAR_HEIGHT * SCALE;
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderCopy(renderer, canvas, NULL, NULL);
-    SDL_SetRenderDrawColor(renderer, pen.r, pen.g, pen.b, 255);
-    for(x = 0; x < TERM_WIDTH; x++) {
-        for(y = 0; y < TERM_HEIGHT; y++) {
-            c = fb[y][x];
-            p = fbc[y][x];
-            if(c < 128) {
-                r.x = (x * CHAR_WIDTH * SCALE);
-                r.y = (y * CHAR_HEIGHT * SCALE);
-                SDL_SetTextureColorMod(fonttex[c], p.r, p.g, p.b);
-                SDL_RenderCopy(renderer, fonttex[c], NULL, &r);
-            }
-            if (interactive && blink && x == curx && y == cury) {
-                r.x = (x * CHAR_WIDTH * SCALE);
-                r.y = (y * CHAR_HEIGHT * SCALE);
-                SDL_RenderFillRect(renderer, &r);
-            }
+short serialcheckch() {
+    SDL_Event ev;
+    if (!term_run) {
+        term_lastkey = '#';
+    } if(SDL_PollEvent(&ev) != 0) {
+        switch(ev.type) {
+            case SDL_QUIT:
+                term_run = 0;
+                term_lastkey = '#';
+                break;
+            case SDL_KEYDOWN:
+                if (!handle_control_keydown(ev.key.keysym.scancode)) {
+                    term_lastkey = decode_scancode(ev.key.keysym.scancode);
+                }
+                break;
+            case SDL_KEYUP:
+                handle_control_keyup(ev.key.keysym.scancode);
+                break;
         }
     }
-    SDL_RenderPresent(renderer);
+    return term_lastkey;
+}
+
+char serialread() {
+    char key = term_lastkey;
+    if (term_lastkey == 0) {
+        key = serialcheckch();
+    }
+    term_lastkey = 0;
+    return key;
+}
+
+void consins(char *buffer, short nb) {
+    term_interactive = 1;
+    SDL_Event ev;
+    while(term_interactive && term_run && SDL_WaitEvent(&ev) >= 0) {
+        switch(ev.type){
+            case SDL_QUIT:
+                term_run = 0;
+                break;
+            case SDL_KEYDOWN:
+                if (!handle_control_keydown(ev.key.keysym.scancode) && !handle_cursor_keys(ev.key.keysym.scancode)) {
+                    char key = decode_scancode(ev.key.keysym.scancode);
+                    handle_interactive_mode(key, buffer, nb);
+                }
+                break;
+            case SDL_KEYUP:
+                handle_control_keyup(ev.key.keysym.scancode);
+                break;
+        }
+        draw();
+    }
 }
 
 void rgbcolor(int r, int g, int b) {
-    pen.r = r;
-    pen.g = g;
-    pen.b = b;
+    term_pen.r = r;
+    term_pen.g = g;
+    term_pen.b = b;
 }
 
 void frect(int x0, int y0, int x1, int y1)  {
@@ -159,78 +138,143 @@ void frect(int x0, int y0, int x1, int y1)  {
     rect.y = y0;
     rect.w = x1 - x0;
     rect.h = y1 - y0;
-    SDL_SetRenderTarget(renderer, canvas);
-    SDL_SetRenderDrawColor(renderer, pen.r, pen.g, pen.b, 255);
-    SDL_RenderFillRect(renderer, &rect);
-    SDL_SetRenderTarget(renderer, NULL);
+    SDL_SetRenderTarget(term_renderer, term_canvas);
+    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
+    SDL_RenderFillRect(term_renderer, &rect);
+    SDL_SetRenderTarget(term_renderer, NULL);
     draw();
 }
 
-void scroll() {
-    int x, y;
-    for(y = 1; y < TERM_HEIGHT; y++) {
-        for(x = 0; x < TERM_WIDTH; x++) {
-            fb[y-1][x] = fb[y][x];
-            fbc[y-1][x] = fbc[y][x];
-        }
-    }
-    for(x = 0; x < TERM_WIDTH; x++) {
-        fb[TERM_HEIGHT-1][x] = ' ';
-        fbc[TERM_HEIGHT-1][x] = pen;
-    }
-}
-
-void moveLeft() {
-    curx--;
-    if (curx < 0) {
-        curx = TERM_WIDTH - 1;
-        cury--;
-        if (cury<0) {
-            cury = 0;
-            curx = 0;
-        }
-    }
-}
-
-void backSpace() {
-    curx--;
-    if (curx < 0) {
-        moveLeft();
-        fb[cury][curx] = ' ';
-        fbc[cury][curx] = pen;
-    } else {
-        for (int x = curx; x < TERM_WIDTH; x++) {
-            if (x == (TERM_WIDTH-1)) {
-                fb[cury][x] = ' ';
-                fbc[cury][x] = pen;
-            } else {
-                fb[cury][x] = fb[cury][x+1];
-                fbc[cury][x] = fbc[cury][x+1];
+void create_char(Uint32 *raster, int c) {
+    Uint8 *chr = &vt52rom[c*8];
+    memset(raster, 0, CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
+    for(int i = 0; i < 8; i++) {
+        for(int j = 0; j < 7; j++) {
+            if(chr[i]&(0100>>j)) {
+                raster[(i*2)*CHAR_WIDTH+j]=0xFFFFFFFF;
+                raster[(i*2+1)*CHAR_WIDTH+j]=0xFFFFFFFF;
             }
         }
     }
 }
 
-void moveUp() {
-    cury--;
-    if (cury < 0) {
-        cury = 0;
+void create_font() {
+    Uint32 *raster = malloc(CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
+    for(int i = 0; i < 128; i++) {
+        create_char(raster, i);
+        term_font[i] = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, CHAR_WIDTH, CHAR_HEIGHT);
+        SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_ADD);
+        SDL_UpdateTexture(term_font[i], NULL, raster, CHAR_WIDTH*sizeof(Uint32));
+        SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_BLEND);
     }
 }
 
-void moveDown() {
-    cury++;
-    if (cury == TERM_HEIGHT) {
+void term_clear() {
+    term_curx = 0;
+    term_cury = 0;
+    for(int x = 0; x < TERM_WIDTH; x++) {
+        for(int y = 0; y < TERM_HEIGHT; y++) {
+            term_chars[y][x] = ' ';
+            term_colors[y][x] = term_pen;
+        }
+    }
+}
+
+void draw() {
+    int x, y, c;
+    Pen p;
+    SDL_Rect r;
+    r.x = 0;
+    r.y = 0;
+    r.w = CHAR_WIDTH*SCALE;
+    r.h = CHAR_HEIGHT*SCALE;
+    SDL_SetRenderDrawColor(term_renderer, 255, 255, 255, 255);
+    SDL_RenderCopy(term_renderer, term_canvas, NULL, NULL);
+    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
+    for(x = 0; x < TERM_WIDTH; x++) {
+        for(y = 0; y < TERM_HEIGHT; y++) {
+            c = term_chars[y][x];
+            p = term_colors[y][x];
+            if(c < 128) {
+                r.x = (x*CHAR_WIDTH*SCALE);
+                r.y = (y*CHAR_HEIGHT*SCALE);
+                SDL_SetTextureColorMod(term_font[c], p.r, p.g, p.b);
+                SDL_RenderCopy(term_renderer, term_font[c], NULL, &r);
+            }
+            if (term_interactive && term_blink && x == term_curx && y == term_cury) {
+                r.x = (x*CHAR_WIDTH*SCALE);
+                r.y = (y*CHAR_HEIGHT*SCALE);
+                SDL_RenderFillRect(term_renderer, &r);
+            }
+        }
+    }
+    SDL_RenderPresent(term_renderer);
+}
+
+void scroll() {
+    for(int y = 1; y < TERM_HEIGHT; y++) {
+        for(int x = 0; x < TERM_WIDTH; x++) {
+            term_chars[y-1][x] = term_chars[y][x];
+            term_colors[y-1][x] = term_colors[y][x];
+        }
+    }
+    for(int x = 0; x < TERM_WIDTH; x++) {
+        term_chars[TERM_HEIGHT-1][x] = ' ';
+        term_colors[TERM_HEIGHT-1][x] = term_pen;
+    }
+}
+
+void move_cursor_left() {
+    term_curx--;
+    if (term_curx < 0) {
+        term_curx = TERM_WIDTH - 1;
+        term_cury--;
+        if (term_cury<0) {
+            term_cury = 0;
+            term_curx = 0;
+        }
+    }
+}
+
+void handle_backspace() {
+    term_curx--;
+    if (term_curx < 0) {
+        move_cursor_left();
+        term_chars[term_cury][term_curx] = ' ';
+        term_colors[term_cury][term_curx] = term_pen;
+    } else {
+        for (int x = term_curx; x < TERM_WIDTH; x++) {
+            if (x == (TERM_WIDTH-1)) {
+                term_chars[term_cury][x] = ' ';
+                term_colors[term_cury][x] = term_pen;
+            } else {
+                term_chars[term_cury][x] = term_chars[term_cury][x+1];
+                term_colors[term_cury][x] = term_colors[term_cury][x+1];
+            }
+        }
+    }
+}
+
+void move_cursor_up() {
+    term_cury--;
+    if (term_cury < 0) {
+        term_cury = 0;
+    }
+}
+
+void move_cursor_down() {
+    term_cury++;
+    if (term_cury == TERM_HEIGHT) {
         scroll();
-        cury = TERM_HEIGHT-1;
+        term_cury = TERM_HEIGHT-1;
     }
 }
 
-void moveRight() {
-    curx++;
-    if (curx == TERM_WIDTH) {
-        curx = 0;
-        moveDown();
+void move_cursor_right() {
+    term_curx++;
+    if (term_curx == TERM_WIDTH) {
+        term_curx = 0;
+        move_cursor_down();
     }
 }
 
@@ -238,152 +282,97 @@ void term_putchar(char key) {
     if (key == 12) {
         term_clear();
     } else if (key == '\n') {
-        curx=0;
-        cury++;
-        if (cury == TERM_HEIGHT) {
+        term_curx=0;
+        term_cury++;
+        if (term_cury == TERM_HEIGHT) {
             scroll();
-            cury = TERM_HEIGHT-1;
+            term_cury = TERM_HEIGHT-1;
         }
     } else if (key == '\b') {
-        backSpace();
+        handle_backspace();
     } else {
-        fb[cury][curx]=key;
-        fbc[cury][curx] = pen;
-        moveRight();
+        term_chars[term_cury][term_curx]=key;
+        term_colors[term_cury][term_curx] = term_pen;
+        move_cursor_right();
     }
     draw();
 }
 
-short handleControlKeyDown(SDL_Scancode scancode) {
+int handle_control_keydown(SDL_Scancode scancode) {
     switch(scancode) {
         case SDL_SCANCODE_LSHIFT:
         case SDL_SCANCODE_RSHIFT:
-            shift = 1;
+            term_shift = 1;
             return 1;
         case SDL_SCANCODE_CAPSLOCK:
         case SDL_SCANCODE_LCTRL:
         case SDL_SCANCODE_RCTRL:
-            ctrl = 1;
+            term_ctrl = 1;
             return 1;
     }
     return 0;
 }
 
-short handleCursorKeys(SDL_Scancode scancode) {
+int handle_cursor_keys(SDL_Scancode scancode) {
     switch(scancode) {
         case SDL_SCANCODE_LEFT:
-            moveLeft();
+            move_cursor_left();
             return 1;
         case SDL_SCANCODE_RIGHT:
-            moveRight();
+            move_cursor_right();
             return 1;
         case SDL_SCANCODE_UP:
-            moveUp();
+            move_cursor_up();
             return 1;
         case SDL_SCANCODE_DOWN:
-            moveDown();
+            move_cursor_down();
             return 1;
     }
     return 0;
 }
 
-char decodeKey(SDL_Scancode scancode) {
+int decode_scancode(SDL_Scancode scancode) {
     char *keys = scancodemap[scancode];
     if(keys == NULL) {
         return 0;
     }
-    char key = keys[shift];
-    if(ctrl) {
+    char key = keys[term_shift];
+    if(term_ctrl) {
         key &= 037;
     }
     return key;
 }
 
-void handlePressedKey(char key, char *b, short nb) {
+void handle_interactive_mode(char key, char *b, short nb) {
     if (key == '\n') {
         char c;
         z.a=1;
         while(z.a < nb && z.a < TERM_WIDTH) {
-            c=fb[cury][z.a-1];
+            c=term_chars[term_cury][z.a-1];
             b[z.a++]=c;
         }
         b[z.a]=0x00;
         z.a--;
         b[0]=(unsigned char)z.a;
-        interactive = 0;
-        printf("LINE %s\n", b);
+        term_interactive = 0;
     }
     term_putchar(key);
 }
 
-void handleControlKeyUp(SDL_Scancode scancode) {
+void handle_control_keyup(SDL_Scancode scancode) {
     switch(scancode) {
         case SDL_SCANCODE_LSHIFT:
         case SDL_SCANCODE_RSHIFT:
-            shift = 0;
+            term_shift = 0;
             return;
         case SDL_SCANCODE_CAPSLOCK:
         case SDL_SCANCODE_LCTRL:
         case SDL_SCANCODE_RCTRL:
-            ctrl = 0;
+            term_ctrl = 0;
             return;
     }
 }
 
-void consins(char *buffer, short nb) {
-    printf("READY\n");
-    interactive = 1;
-    SDL_Event ev;
-    while(interactive && run && SDL_WaitEvent(&ev) >= 0) {
-        switch(ev.type){
-            case SDL_QUIT:
-                run = 0;
-                break;
-            case SDL_KEYDOWN:
-                if (!handleControlKeyDown(ev.key.keysym.scancode) && !handleCursorKeys(ev.key.keysym.scancode)) {
-                    char key = decodeKey(ev.key.keysym.scancode);
-                    handlePressedKey(key, buffer, nb);
-                }
-                break;
-            case SDL_KEYUP:
-                handleControlKeyUp(ev.key.keysym.scancode);
-                break;
-        }
-        draw();
-    }
-}
 
-char lastKey = 0;
 
-short serialcheckch() {
-    SDL_Event ev;
-    if (!run) {
-        lastKey = '#';
-    } if(SDL_PollEvent(&ev) != 0) {
-        switch(ev.type) {
-            case SDL_QUIT:
-                run = 0;
-                lastKey = '#';
-                break;
-            case SDL_KEYDOWN:
-                if (!handleControlKeyDown(ev.key.keysym.scancode)) {
-                    lastKey = decodeKey(ev.key.keysym.scancode);
-                    printf("KEY %c\n", lastKey);
-                }
-                break;
-            case SDL_KEYUP:
-                handleControlKeyUp(ev.key.keysym.scancode);
-                break;
-        }
-    }
-    return lastKey;
-}
 
-char serialread() {
-    char key = lastKey;
-    if (lastKey == 0) {
-        key = serialcheckch();
-    }
-    lastKey = 0;
-    return key;
-}
