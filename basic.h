@@ -63,9 +63,6 @@ typedef unsigned char uint8_t;
 #include <wiringPi.h>
 #endif
 #endif
-#ifdef SDL
-#include "sdl.h"
-#endif
 
 /* general definitions, needed on some old compilers */
 #define TRUE  1

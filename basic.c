@@ -192,6 +192,9 @@
 #include "hardware-arduino.h"
 #else 
 #include "hardware-posix.h"
+#ifdef SDL
+#include "sdl.h"
+#endif
 #endif
 
 /* 
@@ -4115,7 +4118,9 @@ void assignment() {
  *	INPUT ["string",] variable [,["string",] variable]* 
  */
 void showprompt() {
+#ifndef SDL
 	outsc("? ");
+#endif
 }
 
 void xinput(){
