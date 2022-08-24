@@ -166,6 +166,22 @@ void frect(int x0, int y0, int x1, int y1)  {
     draw();
 }
 
+void fcircle(int x0, int y0, int r) {
+    SDL_SetRenderTarget(term_renderer, term_canvas);
+    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
+    for (int w = 0; w < r * 2; w++) {
+        for (int h = 0; h < r * 2; h++) {
+            int dx = r-w;
+            int dy = r-h;
+            if ((dx*dx+dy*dy) <= (r*r)) {
+                SDL_RenderDrawPoint(term_renderer, x0 + dx, y0 + dy);
+            }
+        }
+    }
+    SDL_SetRenderTarget(term_renderer, NULL);
+    draw();
+}
+
 void create_font() {
     Uint32 *raster = malloc(CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
     for(int i = 0; i < 128; i++) {

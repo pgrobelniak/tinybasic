@@ -123,9 +123,9 @@ void rect(int x0, int y0, int x1, int y1)   {}
 #ifndef SDL
 void rgbcolor(int r, int g, int b) {}
 void frect(int x0, int y0, int x1, int y1)  {}
+void fcircle(int x0, int y0, int r) {}
 #endif
 void circle(int x0, int y0, int r) {}
-void fcircle(int x0, int y0, int r) {}
 void vgabegin(){}
 void vgawrite(char c){}
 
