@@ -352,7 +352,7 @@ char fileread(){
 
 char ifileopen(const char* filename){
 	ifile=fopen(filename, "r");
-	return (int) ifile;
+	return (ifile == NULL ? 0 : 1);
 }
 
 void ifileclose(){
