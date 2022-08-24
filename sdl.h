@@ -19,8 +19,6 @@ struct Pen {
 	Uint8 r, g, b
 };
 
-int term_run = 1;
-
 SDL_Window *term_window;
 SDL_Renderer *term_renderer;
 SDL_Texture *term_font[128];
@@ -36,6 +34,8 @@ Uint32 term_usrevt;
 Pen term_pen;
 volatile int term_interactive = 0;
 char term_lastkey = 0;
+
+int term_run = 1;
 
 int blink_thread(void *arg) {
     SDL_Event ev;
@@ -70,6 +70,26 @@ void term_setup() {
     term_pen.g = 255;
     term_pen.b = 0;
     term_clear();
+}
+
+void term_putchar(char key) {
+    if (key == 12) {
+        term_clear();
+    } else if (key == '\n') {
+        term_curx=0;
+        term_cury++;
+        if (term_cury == TERM_HEIGHT) {
+            scroll();
+            term_cury = TERM_HEIGHT-1;
+        }
+    } else if (key == '\b') {
+        handle_backspace();
+    } else {
+        term_chars[term_cury][term_curx]=key;
+        term_colors[term_cury][term_curx] = term_pen;
+        move_cursor_right();
+    }
+    draw();
 }
 
 short serialcheckch() {
@@ -276,26 +296,6 @@ void move_cursor_right() {
         term_curx = 0;
         move_cursor_down();
     }
-}
-
-void term_putchar(char key) {
-    if (key == 12) {
-        term_clear();
-    } else if (key == '\n') {
-        term_curx=0;
-        term_cury++;
-        if (term_cury == TERM_HEIGHT) {
-            scroll();
-            term_cury = TERM_HEIGHT-1;
-        }
-    } else if (key == '\b') {
-        handle_backspace();
-    } else {
-        term_chars[term_cury][term_curx]=key;
-        term_colors[term_cury][term_curx] = term_pen;
-        move_cursor_right();
-    }
-    draw();
 }
 
 int handle_control_keydown(SDL_Scancode scancode) {
