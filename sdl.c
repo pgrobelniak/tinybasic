@@ -33,14 +33,13 @@ int ctrl = 0;
 int blink = 0;
 Uint32 userevent;
 int run = 1;
-volatile int enter = -1;
-SDL_sem* rendererLock = NULL;
 int pr = 255;
 int pg = 255;
 int pb = 0;
 int br = 0;
 int bg = 0;
 int bb = 255;
+volatile int interactive = 0;
 
 int term_running() {
     return run;
@@ -87,28 +86,10 @@ int blinkThread(void *arg) {
     while(run) {
         blink = !blink;
         SDL_Delay(500);
-        SDL_PushEvent(&ev);
-    }
-    return 0;
-}
-
-int eventsThread() {
-    SDL_Event ev;
-    while(run && SDL_WaitEvent(&ev) >= 0) {
-        switch(ev.type){
-            case SDL_QUIT:
-                run = 0;
-                break;
-            case SDL_KEYDOWN:
-                keydown(ev.key.keysym.scancode, ev.key.repeat);
-                break;
-            case SDL_KEYUP:
-                keyup(ev.key.keysym.scancode);
-                break;
+        if (interactive) {
+            SDL_PushEvent(&ev);
         }
-        draw();
     }
-    SDL_Quit();
     return 0;
 }
 
@@ -137,7 +118,6 @@ void term_setup() {
     SDL_SetHint("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0");
     createFont();
     userevent = SDL_RegisterEvents(1);
-    rendererLock = SDL_CreateSemaphore(1);
     canvas = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
     SDL_SetRenderTarget(renderer, canvas);
     SDL_SetRenderDrawColor(renderer, br, bg, bb, 255);
@@ -145,11 +125,9 @@ void term_setup() {
     SDL_SetRenderTarget(renderer, NULL);
     term_clear();
     SDL_CreateThread(blinkThread, "Blink", (void*)NULL);
-    SDL_CreateThread(eventsThread, "Events", (void*)NULL);
 }
 
 void draw() {
-    SDL_SemWait(rendererLock);
     int x, y, c;
     SDL_Rect r;
     r.x = 0;
@@ -178,7 +156,6 @@ void draw() {
         }
     }
     SDL_RenderPresent(renderer);
-    SDL_SemPost(rendererLock);
 }
 
 void rgbcolor(int r, int g, int b) {
@@ -188,7 +165,6 @@ void rgbcolor(int r, int g, int b) {
 }
 
 void frect(int x0, int y0, int x1, int y1)  {
-    SDL_SemWait(rendererLock);
     SDL_Rect rect;
     rect.x = x0;
     rect.y = y0;
@@ -198,7 +174,6 @@ void frect(int x0, int y0, int x1, int y1)  {
     SDL_SetRenderDrawColor(renderer, pr, pg, pb, 255);
     SDL_RenderFillRect(renderer, &rect);
     SDL_SetRenderTarget(renderer, NULL);
-    SDL_SemPost(rendererLock);
     draw();
 }
 
@@ -283,6 +258,8 @@ void moveRight() {
     }
 }
 
+int enter = -1;
+
 void term_putchar(char key) {
     if (key == 12) {
         term_clear();
@@ -302,31 +279,19 @@ void term_putchar(char key) {
         fbc[cury][curx].b=pb;
         moveRight();
     }
-}
-
-void consins(char *b, short nb) {
-    while(run && enter == -1) {
-        SDL_Delay(1);
-    }
-    b[0] = TERM_WIDTH;
-    for (int i = 0; i < TERM_WIDTH; i++) {
-        b[i+1]=fb[enter][i];
-    }
-    b[TERM_WIDTH+2]=0;
-    //printf("%s\n",b);
-    enter = -1;
+    draw();
 }
 
 void keydown(SDL_Scancode scancode, int repeat) {
     switch(scancode) {
         case SDL_SCANCODE_LSHIFT:
-        case SDL_SCANCODE_RSHIFT: 
-            shift = 1; 
+        case SDL_SCANCODE_RSHIFT:
+            shift = 1;
             return;
         case SDL_SCANCODE_CAPSLOCK:
         case SDL_SCANCODE_LCTRL:
-        case SDL_SCANCODE_RCTRL: 
-            ctrl = 1; 
+        case SDL_SCANCODE_RCTRL:
+            ctrl = 1;
             return;
         case SDL_SCANCODE_RETURN:
             curx=0;
@@ -352,7 +317,7 @@ void keydown(SDL_Scancode scancode, int repeat) {
         case SDL_SCANCODE_DOWN:
             moveDown();
             return;
-        default: 
+        default:
             break;
     }
     if(scancode == SDL_SCANCODE_F11 && !repeat) {
@@ -372,15 +337,44 @@ void keydown(SDL_Scancode scancode, int repeat) {
 void keyup(SDL_Scancode scancode) {
     switch(scancode) {
         case SDL_SCANCODE_LSHIFT:
-        case SDL_SCANCODE_RSHIFT: 
-            shift = 0; 
+        case SDL_SCANCODE_RSHIFT:
+            shift = 0;
             return;
         case SDL_SCANCODE_CAPSLOCK:
         case SDL_SCANCODE_LCTRL:
-        case SDL_SCANCODE_RCTRL: 
-            ctrl = 0; 
+        case SDL_SCANCODE_RCTRL:
+            ctrl = 0;
             return;
-        default: 
+        default:
             break;
     }
+}
+
+void consins(char *b, short nb) {
+    interactive = 1;
+    SDL_Event ev;
+    while(run && SDL_WaitEvent(&ev) >= 0) {
+        switch(ev.type){
+            case SDL_QUIT:
+                run = 0;
+                break;
+            case SDL_KEYDOWN:
+                keydown(ev.key.keysym.scancode, ev.key.repeat);
+                break;
+            case SDL_KEYUP:
+                keyup(ev.key.keysym.scancode);
+                break;
+        }
+        draw();
+        if (enter != -1) {
+            b[0] = TERM_WIDTH;
+            for (int i = 0; i < TERM_WIDTH; i++) {
+                b[i+1]=fb[enter][i];
+            }
+            b[TERM_WIDTH+2]=0;
+            enter = -1;
+            break;
+        }
+    }
+    interactive = 0;
 }
