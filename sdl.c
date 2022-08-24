@@ -259,56 +259,65 @@ void term_putchar(char key) {
     draw();
 }
 
-void putCurrentLineInBuffer(char *buffer) {
-    buffer[0] = TERM_WIDTH;
-    for (int i = 0; i < TERM_WIDTH; i++) {
-        buffer[i+1]=fb[cury][i];
-    }
-    buffer[TERM_WIDTH+2]=0;
-}
-
-int keydown(SDL_Scancode scancode, char *buffer) {
+short handleControlKeyDown(SDL_Scancode scancode) {
     switch(scancode) {
         case SDL_SCANCODE_LSHIFT:
         case SDL_SCANCODE_RSHIFT:
             shift = 1;
-            return;
+            return 1;
         case SDL_SCANCODE_CAPSLOCK:
         case SDL_SCANCODE_LCTRL:
         case SDL_SCANCODE_RCTRL:
             ctrl = 1;
-            return;
-        case SDL_SCANCODE_RETURN:
-            putCurrentLineInBuffer(buffer);
-            interactive = 0;
-            break;
+            return 1;
+    }
+    return 0;
+}
+
+short handleCursorKeys(SDL_Scancode scancode) {
+    switch(scancode) {
         case SDL_SCANCODE_LEFT:
             moveLeft();
-            return;
+            return 1;
         case SDL_SCANCODE_RIGHT:
             moveRight();
-            return;
+            return 1;
         case SDL_SCANCODE_UP:
             moveUp();
-            return;
+            return 1;
         case SDL_SCANCODE_DOWN:
             moveDown();
-            return;
-        default:
-            break;
+            return 1;
     }
+    return 0;
+}
+
+char decodeKey(SDL_Scancode scancode) {
     char *keys = scancodemap[scancode];
     if(keys == NULL) {
-        return;
+        return 0;
     }
     char key = keys[shift];
     if(ctrl) {
         key &= 037;
     }
+    return key;
+}
+
+void handlePressedKey(char key, char *buffer) {
+    if (key == '\n') {
+        buffer[0] = TERM_WIDTH;
+        for (int i = 0; i < TERM_WIDTH; i++) {
+            buffer[i+1]=fb[cury][i];
+        }
+        buffer[TERM_WIDTH+2]=0;
+        interactive = 0;
+        printf("LINE %s\n", buffer);
+    }
     term_putchar(key);
 }
 
-void keyup(SDL_Scancode scancode) {
+void handleControlKeyUp(SDL_Scancode scancode) {
     switch(scancode) {
         case SDL_SCANCODE_LSHIFT:
         case SDL_SCANCODE_RSHIFT:
@@ -319,12 +328,11 @@ void keyup(SDL_Scancode scancode) {
         case SDL_SCANCODE_RCTRL:
             ctrl = 0;
             return;
-        default:
-            break;
     }
 }
 
 void consins(char *buffer, short nb) {
+    printf("READY\n");
     interactive = 1;
     SDL_Event ev;
     while(interactive && run && SDL_WaitEvent(&ev) >= 0) {
@@ -333,14 +341,50 @@ void consins(char *buffer, short nb) {
                 run = 0;
                 break;
             case SDL_KEYDOWN:
-                keydown(ev.key.keysym.scancode, buffer);
+                if (!handleControlKeyDown(ev.key.keysym.scancode) && !handleCursorKeys(ev.key.keysym.scancode)) {
+                    char key = decodeKey(ev.key.keysym.scancode);
+                    handlePressedKey(key, buffer);
+                }
                 break;
             case SDL_KEYUP:
-                keyup(ev.key.keysym.scancode);
+                handleControlKeyUp(ev.key.keysym.scancode);
                 break;
         }
         draw();
     }
 }
 
-short serialcheckch(){ return 0; }
+char lastKey = 0;
+
+short serialcheckch() {
+    SDL_Event ev;
+    if (!run) {
+        lastKey = '#';
+    } if(SDL_PollEvent(&ev) != 0) {
+        switch(ev.type) {
+            case SDL_QUIT:
+                run = 0;
+                lastKey = '#';
+                break;
+            case SDL_KEYDOWN:
+                if (!handleControlKeyDown(ev.key.keysym.scancode)) {
+                    lastKey = decodeKey(ev.key.keysym.scancode);
+                    printf("KEY %c\n", lastKey);
+                }
+                break;
+            case SDL_KEYUP:
+                handleControlKeyUp(ev.key.keysym.scancode);
+                break;
+        }
+    }
+    return lastKey;
+}
+
+char serialread() {
+    char key = lastKey;
+    if (lastKey == 0) {
+        key = serialcheckch();
+    }
+    lastKey = 0;
+    return key;
+}

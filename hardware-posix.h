@@ -453,8 +453,8 @@ void serialwrite(char c) {
 	putchar(c); 
 #endif
 }
-char serialread() { return getchar(); }
 #ifndef SDL
+char serialread() { return getchar(); }
 short serialcheckch(){ return TRUE; }
 #endif
 short serialavailable() {return TRUE; }
