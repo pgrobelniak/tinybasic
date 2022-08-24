@@ -454,7 +454,9 @@ void serialwrite(char c) {
 #endif
 }
 char serialread() { return getchar(); }
+#ifndef SDL
 short serialcheckch(){ return TRUE; }
+#endif
 short serialavailable() {return TRUE; }
 
 /*

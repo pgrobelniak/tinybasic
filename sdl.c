@@ -137,7 +137,7 @@ void draw() {
                 SDL_SetTextureColorMod(fonttex[c], p.r, p.g, p.b);
                 SDL_RenderCopy(renderer, fonttex[c], NULL, &r);
             }
-            if (blink && x == curx && y == cury) {
+            if (interactive && blink && x == curx && y == cury) {
                 r.x = (x * CHAR_WIDTH * SCALE);
                 r.y = (y * CHAR_HEIGHT * SCALE);
                 SDL_RenderFillRect(renderer, &r);
@@ -282,9 +282,6 @@ int keydown(SDL_Scancode scancode, char *buffer) {
             putCurrentLineInBuffer(buffer);
             interactive = 0;
             break;
-        case SDL_SCANCODE_BACKSPACE:
-            backSpace();
-            return;
         case SDL_SCANCODE_LEFT:
             moveLeft();
             return;
@@ -345,3 +342,5 @@ void consins(char *buffer, short nb) {
         draw();
     }
 }
+
+short serialcheckch(){ return 0; }
