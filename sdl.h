@@ -62,17 +62,10 @@ void term_setup() {
     }
     SDL_SetWindowTitle(term_window, "Basic");
     term_canvas = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
-    SDL_SetRenderTarget(term_renderer, term_canvas);
-    SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
-    SDL_RenderClear(term_renderer);
-    SDL_SetRenderTarget(term_renderer, NULL);
     term_userev = SDL_RegisterEvents(1);
     SDL_CreateThread(blink_thread, "Blink", (void*)NULL);
     create_font();
-    term_pen.r = 255;
-    term_pen.g = 255;
-    term_pen.b = 0;
-    term_clear();
+    term_reset();
 }
 
 void term_putchar(char key) {
@@ -337,8 +330,24 @@ int handle_control_keydown(SDL_Scancode scancode) {
         case SDL_SCANCODE_RCTRL:
             term_ctrl = 1;
             return 1;
+        case SDL_SCANCODE_F12:
+            term_reset();
+            draw();
+            return 1;
     }
     return 0;
+}
+
+void term_reset() {
+    SDL_SetRenderTarget(term_renderer, term_canvas);
+    SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
+    SDL_RenderClear(term_renderer);
+    SDL_SetRenderTarget(term_renderer, NULL);
+    term_pen.r = 255;
+    term_pen.g = 255;
+    term_pen.b = 0;
+    term_clear();
+    term_mode = 0;
 }
 
 int handle_cursor_keys(SDL_Scancode scancode) {
