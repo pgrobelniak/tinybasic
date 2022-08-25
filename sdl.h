@@ -134,9 +134,8 @@ void consins(char *buffer, short nb) {
                 term_run = 0;
                 break;
             case SDL_KEYDOWN:
-                SDL_Scancode scancode = ev.key.keysym.scancode;
-                if (!handle_control_keydown(scancode) && !handle_cursor_keys(scancode)) {
-                    char key = decode_scancode(scancode);
+                if (!handle_control_keydown(ev.key.keysym.scancode) && !handle_cursor_keys(ev.key.keysym.scancode)) {
+                    char key = decode_scancode(ev.key.keysym.scancode);
                     handle_interactive_mode(key, buffer, nb);
                 }
                 break;
