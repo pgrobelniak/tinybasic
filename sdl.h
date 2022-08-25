@@ -1,18 +1,20 @@
 #include <SDL.h>
 
+#define DISPLAYDRIVER
+
 #include "scancodes.h"
 #include "vt52rom.h"
 
-#define TERM_WIDTH 80
-#define TERM_HEIGHT 24
+#define dsp_columns 80
+#define dsp_rows 24
 
 #define SCALE 1
 
 #define CHAR_WIDTH 8
 #define CHAR_HEIGHT 20
 
-#define WINDOW_WIDTH TERM_WIDTH*CHAR_WIDTH // 640
-#define WINDOW_HEIGHT TERM_HEIGHT*CHAR_HEIGHT // 480
+#define WINDOW_WIDTH dsp_columns*CHAR_WIDTH // 640
+#define WINDOW_HEIGHT dsp_rows*CHAR_HEIGHT // 480
 
 typedef struct Pen Pen;
 struct Pen {
@@ -23,10 +25,8 @@ SDL_Window *term_window;
 SDL_Renderer *term_renderer;
 SDL_Texture *term_font[128];
 SDL_Texture *term_canvas;
-char term_chars[TERM_HEIGHT][TERM_WIDTH];
-Pen term_colors[TERM_HEIGHT][TERM_WIDTH];
-int term_curx = 0;
-int term_cury = 0;
+char term_chars[dsp_rows][dsp_columns];
+Pen term_colors[dsp_rows][dsp_columns];
 int term_shift = 0;
 int term_ctrl = 0;
 int term_blink = 0;
@@ -36,6 +36,8 @@ volatile int term_interactive = 0;
 char term_lastkey = 0;
 char term_mode = 0;
 
+int dspmycol = 0;
+int dspmyrow = 0;
 int term_run = 1;
 
 int blink_thread(void *arg) {
@@ -77,17 +79,17 @@ void term_putchar(char key) {
     if (key == 12) {
         term_clear();
     } else if (key == '\n') {
-        term_curx=0;
-        term_cury++;
-        if (term_cury == TERM_HEIGHT) {
+        dspmycol=0;
+        dspmyrow++;
+        if (dspmyrow == dsp_rows) {
             scroll();
-            term_cury = TERM_HEIGHT-1;
+            dspmyrow = dsp_rows-1;
         }
     } else if (key == '\b') {
         handle_backspace();
     } else {
-        term_chars[term_cury][term_curx] = key;
-        term_colors[term_cury][term_curx] = term_pen;
+        term_chars[dspmyrow][dspmycol] = key;
+        term_colors[dspmyrow][dspmycol] = term_pen;
         move_cursor_right();
     }
     draw();
@@ -184,7 +186,9 @@ void fcircle(int x0, int y0, int r) {
 
 void dspsetupdatemode(char c) {
     term_mode = c;
-    draw();
+    if (!c) {
+        draw();
+    }
 }
 
 void create_font() {
@@ -212,10 +216,10 @@ void create_char(Uint32 *raster, int c) {
 }
 
 void term_clear() {
-    term_curx = 0;
-    term_cury = 0;
-    for(int x = 0; x < TERM_WIDTH; x++) {
-        for(int y = 0; y < TERM_HEIGHT; y++) {
+    dspmycol = 0;
+    dspmyrow = 0;
+    for(int x = 0; x < dsp_columns; x++) {
+        for(int y = 0; y < dsp_rows; y++) {
             term_chars[y][x] = ' ';
             term_colors[y][x] = term_pen;
         }
@@ -233,8 +237,8 @@ void draw() {
     SDL_SetRenderDrawColor(term_renderer, 255, 255, 255, 255);
     SDL_RenderCopy(term_renderer, term_canvas, NULL, NULL);
     SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
-    for(x = 0; x < TERM_WIDTH; x++) {
-        for(y = 0; y < TERM_HEIGHT; y++) {
+    for(x = 0; x < dsp_columns; x++) {
+        for(y = 0; y < dsp_rows; y++) {
             c = term_chars[y][x];
             p = term_colors[y][x];
             if(c < 128) {
@@ -243,7 +247,7 @@ void draw() {
                 SDL_SetTextureColorMod(term_font[c], p.r, p.g, p.b);
                 SDL_RenderCopy(term_renderer, term_font[c], NULL, &r);
             }
-            if (term_interactive && term_blink && x == term_curx && y == term_cury) {
+            if (term_interactive && term_blink && x == dspmycol && y == dspmyrow) {
                 r.x = (x*CHAR_WIDTH*SCALE);
                 r.y = (y*CHAR_HEIGHT*SCALE);
                 SDL_RenderFillRect(term_renderer, &r);
@@ -256,68 +260,68 @@ void draw() {
 }
 
 void scroll() {
-    for(int y = 1; y < TERM_HEIGHT; y++) {
-        for(int x = 0; x < TERM_WIDTH; x++) {
+    for(int y = 1; y < dsp_rows; y++) {
+        for(int x = 0; x < dsp_columns; x++) {
             term_chars[y-1][x] = term_chars[y][x];
             term_colors[y-1][x] = term_colors[y][x];
         }
     }
-    for(int x = 0; x < TERM_WIDTH; x++) {
-        term_chars[TERM_HEIGHT-1][x] = ' ';
-        term_colors[TERM_HEIGHT-1][x] = term_pen;
+    for(int x = 0; x < dsp_columns; x++) {
+        term_chars[dsp_rows-1][x] = ' ';
+        term_colors[dsp_rows-1][x] = term_pen;
     }
 }
 
 void move_cursor_left() {
-    term_curx--;
-    if (term_curx < 0) {
-        term_curx = TERM_WIDTH - 1;
-        term_cury--;
-        if (term_cury < 0) {
-            term_cury = 0;
-            term_curx = 0;
+    dspmycol--;
+    if (dspmycol < 0) {
+        dspmycol = dsp_columns - 1;
+        dspmyrow--;
+        if (dspmyrow < 0) {
+            dspmyrow = 0;
+            dspmycol = 0;
         }
     }
 }
 
 void handle_backspace() {
-    term_curx--;
-    if (term_curx < 0) {
+    dspmycol--;
+    if (dspmycol < 0) {
         move_cursor_left();
-        term_chars[term_cury][term_curx] = ' ';
-        term_colors[term_cury][term_curx] = term_pen;
+        term_chars[dspmyrow][dspmycol] = ' ';
+        term_colors[dspmyrow][dspmycol] = term_pen;
     } else {
-        for (int x = term_curx; x < TERM_WIDTH; x++) {
-            if (x == (TERM_WIDTH-1)) {
-                term_chars[term_cury][x] = ' ';
-                term_colors[term_cury][x] = term_pen;
+        for (int x = dspmycol; x < dsp_columns; x++) {
+            if (x == (dsp_columns-1)) {
+                term_chars[dspmyrow][x] = ' ';
+                term_colors[dspmyrow][x] = term_pen;
             } else {
-                term_chars[term_cury][x] = term_chars[term_cury][x+1];
-                term_colors[term_cury][x] = term_colors[term_cury][x+1];
+                term_chars[dspmyrow][x] = term_chars[dspmyrow][x+1];
+                term_colors[dspmyrow][x] = term_colors[dspmyrow][x+1];
             }
         }
     }
 }
 
 void move_cursor_up() {
-    term_cury--;
-    if (term_cury < 0) {
-        term_cury = 0;
+    dspmyrow--;
+    if (dspmyrow < 0) {
+        dspmyrow = 0;
     }
 }
 
 void move_cursor_down() {
-    term_cury++;
-    if (term_cury == TERM_HEIGHT) {
+    dspmyrow++;
+    if (dspmyrow == dsp_rows) {
         scroll();
-        term_cury = TERM_HEIGHT-1;
+        dspmyrow = dsp_rows-1;
     }
 }
 
 void move_cursor_right() {
-    term_curx++;
-    if (term_curx == TERM_WIDTH) {
-        term_curx = 0;
+    dspmycol++;
+    if (dspmycol == dsp_columns) {
+        dspmycol = 0;
         move_cursor_down();
     }
 }
@@ -371,8 +375,8 @@ void handle_interactive_mode(char key, char *b, short nb) {
     if (key == '\n') {
         char c;
         z.a=1;
-        while(z.a < nb && z.a < TERM_WIDTH) {
-            c=term_chars[term_cury][z.a-1];
+        while(z.a < nb && z.a < dsp_columns) {
+            c=term_chars[dspmyrow][z.a-1];
             b[z.a++]=c;
         }
         b[z.a]=0x00;
