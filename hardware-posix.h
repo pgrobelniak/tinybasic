@@ -106,8 +106,6 @@ void spibegin() {}
  * 
  * Color is currently either 24 bit or 4 bit 16 color vga.
  */
-void dspwrite(char c){};
-void dspbegin() {};
 int dspstat(char c) {return 0; }
 char dspwaitonscroll() { return 0; }
 char dspactive() {return FALSE; }
@@ -118,6 +116,8 @@ void plot(int x, int y) {}
 void line(int x0, int y0, int x1, int y1)   {}
 void rect(int x0, int y0, int x1, int y1)   {}
 #ifndef SDL
+void dspbegin() {};
+void dspwrite(char c){};
 const int dsp_rows=0;
 const int dsp_columns=0;
 void dspsetupdatemode(char c) {}
@@ -139,9 +139,11 @@ void vgawrite(char c){}
  */
 void kbdbegin() {}
 int kbdstat(char c) {return 0; }
+#ifndef SDL
 char kbdavailable(){ return 0;}
 char kbdread() { return 0;}
 char kbdcheckch() { return 0;}
+#endif
 
 /* Display driver would be here, together with vt52 */
 
@@ -447,16 +449,10 @@ void serialwrite(char c) {
 	if (c > 31) charcount+=1;
 	if (c == 10) charcount=0;
 #endif
-#ifdef SDL
-	term_putchar(c);
-#else
 	putchar(c); 
-#endif
 }
-#ifndef SDL
 char serialread() { return getchar(); }
 short serialcheckch(){ return TRUE; }
-#endif
 short serialavailable() {return TRUE; }
 
 /*
@@ -465,7 +461,6 @@ short serialavailable() {return TRUE; }
  * this code needs to go to the main interpreter section after 
  * thorough rewrite
  */
-#ifndef SDL
 void consins(char *b, short nb) {
 	char c;
 	
@@ -483,7 +478,6 @@ void consins(char *b, short nb) {
 	z.a--;
 	b[0]=(unsigned char)z.a;
 }
-#endif
 
 /* handling the second serial interface */
 void prtbegin() {}

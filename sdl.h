@@ -53,7 +53,7 @@ int blink_thread(void *arg) {
     return 0;
 }
 
-void term_setup() {
+void dspbegin() {
     SDL_Init(SDL_INIT_VIDEO);
     if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH*SCALE, WINDOW_HEIGHT*SCALE, SDL_WINDOW_OPENGL, &term_window, &term_renderer) < 0) {
         fprintf(stderr, "%s\n", SDL_GetError());
@@ -67,7 +67,7 @@ void term_setup() {
     term_reset();
 }
 
-void term_putchar(char key) {
+void dspwrite(char key) {
     if (key == 12) {
         term_clear();
     } else if (key == '\n') {
@@ -87,7 +87,11 @@ void term_putchar(char key) {
     draw();
 }
 
-short serialcheckch() {
+char kbdavailable(){
+    return term_lastkey;
+}
+
+char kbdcheckch() {
     SDL_Event ev;
     if(SDL_PollEvent(&ev) != 0) {
         switch(ev.type) {
@@ -110,16 +114,16 @@ short serialcheckch() {
     return term_lastkey;
 }
 
-char serialread() {
+char kbdread() {
     char key = term_lastkey;
     if (key == 0) {
-        key = serialcheckch();
+        key = kbdcheckch();
     }
     term_lastkey = 0;
     return key;
 }
 
-void consins(char *buffer, short nb) {
+void consins_sdl(char *buffer, short nb) {
     term_interactive = 1;
     SDL_Event ev;
     while(term_interactive && SDL_WaitEvent(&ev) >= 0) {
@@ -399,7 +403,7 @@ void handle_interactive_mode(char key, char *b, short nb) {
         b[0]=(unsigned char)z.a;
         term_interactive = 0;
     }
-    term_putchar(key);
+    dspwrite(key);
 }
 
 void handle_control_keyup(SDL_Scancode scancode) {

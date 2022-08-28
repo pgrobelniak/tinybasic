@@ -213,6 +213,8 @@
 #else 
 #include "hardware-posix.h"
 #ifdef SDL
+#define STANDALONE
+#define HASKEYBOARD
 #include "sdl.h"
 #endif
 #endif
@@ -1795,6 +1797,11 @@ void ins(char *b, address_t nb) {
   		case IRADIO:
   			radioins(b, nb);
   			break;
+#endif
+#ifdef SDL
+		case IKEYBOARD:
+			consins_sdl(b, nb);
+			break;
 #endif
   		default:
 #ifdef ARDUINOPRT
@@ -6870,9 +6877,6 @@ void loop() {
 /* if we are not on an Arduino */
 #ifndef ARDUINO
 int main(int argc, char* argv[]){
-#ifdef SDL
-	term_setup();
-#endif
 
 /* save the arguments if there are any */
     bargc=argc;
