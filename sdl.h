@@ -38,13 +38,12 @@ char term_mode = 0;
 
 int dspmycol = 0;
 int dspmyrow = 0;
-int term_run = 1;
 
 int blink_thread(void *arg) {
     SDL_Event ev;
     memset(&ev, 0, sizeof(ev));
     ev.type = term_userev;
-    while(term_run) {
+    for(;;) {
         term_blink = !term_blink;
         SDL_Delay(500);
         if (term_interactive) {
@@ -90,17 +89,17 @@ void term_putchar(char key) {
 
 short serialcheckch() {
     SDL_Event ev;
-    if (!term_run) {
-        term_lastkey = '#';
-    } if(SDL_PollEvent(&ev) != 0) {
+    if(SDL_PollEvent(&ev) != 0) {
         switch(ev.type) {
             case SDL_QUIT:
-                term_run = 0;
-                term_lastkey = '#';
+                quit();
                 break;
             case SDL_KEYDOWN:
                 if (!handle_control_keydown(ev.key.keysym.scancode)) {
                     term_lastkey = decode_scancode(ev.key.keysym.scancode);
+                }
+                if (term_lastkey=='#') {
+                    dspsetupdatemode(0);
                 }
                 break;
             case SDL_KEYUP:
@@ -123,11 +122,10 @@ char serialread() {
 void consins(char *buffer, short nb) {
     term_interactive = 1;
     SDL_Event ev;
-    while(term_interactive && term_run && SDL_WaitEvent(&ev) >= 0) {
+    while(term_interactive && SDL_WaitEvent(&ev) >= 0) {
         switch(ev.type){
             case SDL_QUIT:
-                term_run = 0;
-                break;
+                quit();
             case SDL_KEYDOWN:
                 if (!handle_control_keydown(ev.key.keysym.scancode) && !handle_cursor_keys(ev.key.keysym.scancode)) {
                     char key = decode_scancode(ev.key.keysym.scancode);
@@ -140,6 +138,11 @@ void consins(char *buffer, short nb) {
         }
         draw();
     }
+}
+
+void quit() {
+    SDL_Quit();
+    exit(0);
 }
 
 void rgbcolor(int r, int g, int b) {
@@ -333,6 +336,9 @@ int handle_control_keydown(SDL_Scancode scancode) {
         case SDL_SCANCODE_F12:
             term_reset();
             draw();
+            if (!term_interactive) {
+                term_lastkey = '#';
+            }
             return 1;
     }
     return 0;
