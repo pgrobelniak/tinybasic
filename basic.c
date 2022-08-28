@@ -43,10 +43,11 @@
  * BASICTINYWITHFLOAT: a floating point tinybasic
  * BASICMINIMAL: minimal language
  */
-#define  BASICFULL
-#undef   BASICINTEGER
-#undef   BASICMINIMAL
-#undef   BASICTINYWITHFLOAT
+#define	BASICFULL
+#undef	BASICINTEGER
+#undef	BASICSIMPLE
+#undef	BASICMINIMAL
+#undef	BASICTINYWITHFLOAT
 
 /*
  * custom settings undef all the the language sets 
@@ -87,12 +88,12 @@
 #undef HASSTRINGARRAYS
 #endif
 
-/* all features minus float */
+/* all features minus float and tone */
 #ifdef  BASICINTEGER
 #define HASAPPLE1
 #define HASARDUINOIO
 #define HASFILEIO
-#undef  HASTONE
+#define HASTONE
 #define HASPULSE
 #define HASSTEFANSEXT
 #define HASERRORMSG
@@ -104,6 +105,25 @@
 #define HASIOT
 #define HASMULTIDIM
 #define HASSTRINGARRAYS
+#endif
+
+/* a simple integer basic for small systems (UNO etc) */
+#ifdef  BASICSIMPLE
+#define HASAPPLE1
+#define HASARDUINOIO
+#define HASFILEIO
+#undef 	HASTONE
+#define HASPULSE
+#define HASSTEFANSEXT
+#define HASERRORMSG
+#define HASVT52
+#undef  HASFLOAT
+#undef  HASGRAPH
+#define HASDARTMOUTH
+#undef  HASDARKARTS
+#define HASIOT
+#undef  HASMULTIDIM
+#undef  HASSTRINGARRAYS
 #endif
 
 /* all features activated */
@@ -990,6 +1010,18 @@ address_t createstring(char c, char d, address_t i, address_t j) {
 #endif
 }
 
+/* this is an experimental helper for @X$, generates a string  
+	this is a method to insert a user defined string, e.g. from an I/O device 
+	makemyxstring() can be called multiple times in the code for the same string 
+	operation in BASIC, it cannot be used as a trigger for an I/O operation*/
+
+void makemyxstring() {
+	int i;
+	const char text[] = "hello world";
+	for(i=0; i<SBUFSIZE-1 && text[i]!=0 ; i++) sbuffer[i+1]=text[i];
+	sbuffer[0]=i;
+}
+
 /* get a string at position b, the -1+stringdexsize is needed because a string index starts with 1 
  * 	in addition to the memory pointer, return the address in memory.
  *	We use a pointer to memory here instead of going through the mem interface with an integer variable
@@ -1027,6 +1059,14 @@ char* getstring(char c, char d, address_t b, address_t j) {
 		return rtcstring+b;
 	}
 #endif
+
+/* a user definable special string in sbuffer, makemyxtring is a 
+	user definable function  */
+	if ( c == '@' && d == 'X' ) {
+		makemyxstring();
+		return sbuffer+b;
+	}
+
     
 /* the arguments string on POSIX systems */
 #ifndef ARDUINO
@@ -1162,6 +1202,15 @@ address_t lenstring(char c, char d, address_t j){
 		return rtcstring[0];
 	}
 #endif
+
+/* a user definable special string in sbuffer 
+	makemyxstring has to be called here because 
+	in the code sometimes getstring is called first 
+	and sometimes lenstring */
+	if ( c == '@' && d == 'X' ) {
+		makemyxstring();
+		return sbuffer[0];
+	}
     
 /* the arguments string on POSIX systems */
 #ifndef ARDUINO
@@ -3192,7 +3241,7 @@ char stringvalue() {
 		ir2=getstring(xcl, ycl, x, k);
 /* if the memory interface is active spistrbuf1 has the string */
 #ifdef USEMEMINTERFACE
-		ir2=spistrbuf1;
+		if (ir2 == 0) ir2=spistrbuf1;
 #endif
 		if (y-x+1 > 0) push(y-x+1); else push(0);
 	  if (DEBUG) { outsc("** in stringvalue, length "); outnumber(y-x+1); outsc(" from "); outnumber(x); outspc(); outnumber(y); outcr(); }
@@ -4764,13 +4813,19 @@ void xclr() {
 				if (xcl == '@') { error(EVARIABLE); return; }
 				break;
 			default:
-				error(EVARIABLE);
-				return;
+				expression();
+				if (er != 0) return;
+				ax=pop();
+				xcl=ax%256;
+				ycl=ax/256;
+				t=TBUFFER;
 		}
 
 		ax=bfree(t, xcl, ycl);
-		if (ax == 0) { error(EVARIABLE); return; }
-
+		if (ax == 0) { 
+			if (t != TBUFFER) { error(EVARIABLE); return; }
+			else ert=1;
+		}
 	}
 
 #else
