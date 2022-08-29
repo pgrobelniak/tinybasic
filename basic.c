@@ -213,8 +213,6 @@
 #else 
 #include "hardware-posix.h"
 #ifdef SDL
-#define STANDALONE
-#define HASKEYBOARD
 #include "sdl.h"
 #endif
 #endif

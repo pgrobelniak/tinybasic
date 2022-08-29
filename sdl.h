@@ -1,12 +1,23 @@
+/*
+ * SDL display driver for Stefan's basic interpreter
+ *
+ * Author: Pawel Grobelniak, pawel.grobelniak@gmail.com
+ *
+ */
+
 #include <SDL.h>
-
-#define DISPLAYDRIVER
-
 #include "scancodes.h"
 #include "vt52rom.h"
 
+#define STANDALONE
+#define DISPLAYDRIVER
+#define HASKEYBOARD
+
 #define dsp_columns 80
 #define dsp_rows 24
+
+int dspmycol = 0;
+int dspmyrow = 0;
 
 #define SCALE 1
 
@@ -18,7 +29,7 @@
 
 typedef struct Pen Pen;
 struct Pen {
-	Uint8 r, g, b
+    Uint8 r, g, b
 };
 
 SDL_Window *term_window;
@@ -36,9 +47,6 @@ volatile int term_interactive = 0;
 char term_lastkey = 0;
 char term_mode = 0;
 
-int dspmycol = 0;
-int dspmyrow = 0;
-
 int blink_thread(void *arg) {
     SDL_Event ev;
     memset(&ev, 0, sizeof(ev));
@@ -52,6 +60,8 @@ int blink_thread(void *arg) {
     }
     return 0;
 }
+
+/* display functions */
 
 void dspbegin() {
     SDL_Init(SDL_INIT_VIDEO);
@@ -87,66 +97,11 @@ void dspwrite(char key) {
     draw();
 }
 
-char kbdavailable(){
-    return term_lastkey;
-}
-
-char kbdcheckch() {
-    SDL_Event ev;
-    if(SDL_PollEvent(&ev) != 0) {
-        switch(ev.type) {
-            case SDL_QUIT:
-                quit();
-                break;
-            case SDL_KEYDOWN:
-                if (!handle_control_keydown(ev.key.keysym.scancode)) {
-                    term_lastkey = decode_scancode(ev.key.keysym.scancode);
-                }
-                if (term_lastkey=='#') {
-                    dspsetupdatemode(0);
-                }
-                break;
-            case SDL_KEYUP:
-                handle_control_keyup(ev.key.keysym.scancode);
-                break;
-        }
-    }
-    return term_lastkey;
-}
-
-char kbdread() {
-    char key = term_lastkey;
-    if (key == 0) {
-        key = kbdcheckch();
-    }
-    term_lastkey = 0;
-    return key;
-}
-
-void consins_sdl(char *buffer, short nb) {
-    term_interactive = 1;
-    SDL_Event ev;
-    while(term_interactive && SDL_WaitEvent(&ev) >= 0) {
-        switch(ev.type){
-            case SDL_QUIT:
-                quit();
-            case SDL_KEYDOWN:
-                if (!handle_control_keydown(ev.key.keysym.scancode) && !handle_cursor_keys(ev.key.keysym.scancode)) {
-                    char key = decode_scancode(ev.key.keysym.scancode);
-                    handle_interactive_mode(key, buffer, nb);
-                }
-                break;
-            case SDL_KEYUP:
-                handle_control_keyup(ev.key.keysym.scancode);
-                break;
-        }
+void dspsetupdatemode(char c) {
+    term_mode = c;
+    if (!c) {
         draw();
     }
-}
-
-void quit() {
-    SDL_Quit();
-    exit(0);
 }
 
 void rgbcolor(int r, int g, int b) {
@@ -184,12 +139,73 @@ void fcircle(int x0, int y0, int r) {
     draw();
 }
 
-void dspsetupdatemode(char c) {
-    term_mode = c;
-    if (!c) {
+/* keyboard functions */
+
+char kbdavailable() {
+    return term_lastkey;
+}
+
+char kbdcheckch() {
+    SDL_Event ev;
+    if(SDL_PollEvent(&ev) != 0) {
+        switch(ev.type) {
+        case SDL_QUIT:
+            quit();
+            break;
+        case SDL_KEYDOWN:
+            if (!handle_control_keydown(ev.key.keysym.scancode)) {
+                term_lastkey = decode_scancode(ev.key.keysym.scancode);
+            }
+            if (term_lastkey=='#') {
+                dspsetupdatemode(0);
+            }
+            break;
+        case SDL_KEYUP:
+            handle_control_keyup(ev.key.keysym.scancode);
+            break;
+        }
+    }
+    return term_lastkey;
+}
+
+char kbdread() {
+    char key = term_lastkey;
+    if (key == 0) {
+        key = kbdcheckch();
+    }
+    term_lastkey = 0;
+    return key;
+}
+
+/*
+ * reading from console - interactive mode
+ * allows for moving around the screen using cursor keys
+ * returns control to the interpreter on pressing enter key
+ * puts whole current line in the buffer
+ */
+
+void consins_sdl(char *buffer, short nb) {
+    term_interactive = 1;
+    SDL_Event ev;
+    while(term_interactive && SDL_WaitEvent(&ev) >= 0) {
+        switch(ev.type) {
+        case SDL_QUIT:
+            quit();
+        case SDL_KEYDOWN:
+            if (!handle_control_keydown(ev.key.keysym.scancode) && !handle_cursor_keys(ev.key.keysym.scancode)) {
+                char key = decode_scancode(ev.key.keysym.scancode);
+                handle_interactive_mode(key, buffer, nb);
+            }
+            break;
+        case SDL_KEYUP:
+            handle_control_keyup(ev.key.keysym.scancode);
+            break;
+        }
         draw();
     }
 }
+
+/* internal functions */
 
 void create_font() {
     Uint32 *raster = malloc(CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
@@ -215,6 +231,18 @@ void create_char(Uint32 *raster, int c) {
     }
 }
 
+void term_reset() {
+    SDL_SetRenderTarget(term_renderer, term_canvas);
+    SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
+    SDL_RenderClear(term_renderer);
+    SDL_SetRenderTarget(term_renderer, NULL);
+    term_pen.r = 255;
+    term_pen.g = 255;
+    term_pen.b = 0;
+    term_clear();
+    term_mode = 0;
+}
+
 void term_clear() {
     dspmycol = 0;
     dspmyrow = 0;
@@ -223,6 +251,19 @@ void term_clear() {
             term_chars[y][x] = ' ';
             term_colors[y][x] = term_pen;
         }
+    }
+}
+
+void scroll() {
+    for(int y = 1; y < dsp_rows; y++) {
+        for(int x = 0; x < dsp_columns; x++) {
+            term_chars[y-1][x] = term_chars[y][x];
+            term_colors[y-1][x] = term_colors[y][x];
+        }
+    }
+    for(int x = 0; x < dsp_columns; x++) {
+        term_chars[dsp_rows-1][x] = ' ';
+        term_colors[dsp_rows-1][x] = term_pen;
     }
 }
 
@@ -259,17 +300,100 @@ void draw() {
     }
 }
 
-void scroll() {
-    for(int y = 1; y < dsp_rows; y++) {
-        for(int x = 0; x < dsp_columns; x++) {
-            term_chars[y-1][x] = term_chars[y][x];
-            term_colors[y-1][x] = term_colors[y][x];
+void quit() {
+    SDL_Quit();
+    exit(0);
+}
+
+void handle_interactive_mode(char key, char *b, short nb) {
+    if (key == '\n') {
+        char c;
+        z.a=1;
+        while(z.a < nb && z.a < dsp_columns) {
+            c=term_chars[dspmyrow][z.a-1];
+            b[z.a++]=c;
         }
+        b[z.a]=0x00;
+        z.a--;
+        b[0]=(unsigned char)z.a;
+        term_interactive = 0;
     }
-    for(int x = 0; x < dsp_columns; x++) {
-        term_chars[dsp_rows-1][x] = ' ';
-        term_colors[dsp_rows-1][x] = term_pen;
+    dspwrite(key);
+}
+
+int handle_control_keydown(SDL_Scancode scancode) {
+    switch(scancode) {
+    case SDL_SCANCODE_LSHIFT:
+    case SDL_SCANCODE_RSHIFT:
+        term_shift = 1;
+        return 1;
+    case SDL_SCANCODE_CAPSLOCK:
+    case SDL_SCANCODE_LCTRL:
+    case SDL_SCANCODE_RCTRL:
+        term_ctrl = 1;
+        return 1;
+    case SDL_SCANCODE_F12:
+        term_reset();
+        draw();
+        if (!term_interactive) {
+            term_lastkey = '#';
+        }
+        return 1;
     }
+    return 0;
+}
+
+void handle_control_keyup(SDL_Scancode scancode) {
+    switch(scancode) {
+    case SDL_SCANCODE_LSHIFT:
+    case SDL_SCANCODE_RSHIFT:
+        term_shift = 0;
+        return;
+    case SDL_SCANCODE_CAPSLOCK:
+    case SDL_SCANCODE_LCTRL:
+    case SDL_SCANCODE_RCTRL:
+        term_ctrl = 0;
+        return;
+    }
+}
+
+int decode_scancode(SDL_Scancode scancode) {
+    char *keys = scancodemap[scancode];
+    if(keys == NULL) {
+        return 0;
+    }
+    char key = keys[term_shift];
+    if(term_ctrl) {
+        key &= 037;
+    }
+    return key;
+}
+
+int handle_cursor_keys(SDL_Scancode scancode) {
+    switch(scancode) {
+    case SDL_SCANCODE_LEFT:
+        move_cursor_left();
+        return 1;
+    case SDL_SCANCODE_RIGHT:
+        move_cursor_right();
+        return 1;
+    case SDL_SCANCODE_UP:
+        move_cursor_up();
+        return 1;
+    case SDL_SCANCODE_DOWN:
+        move_cursor_down();
+        return 1;
+    case SDL_SCANCODE_INSERT:
+        handle_insert();
+        return 1;
+    case SDL_SCANCODE_HOME:
+        handle_home();
+        return 1;
+    case SDL_SCANCODE_END:
+        handle_end();
+        return 1;
+    }
+    return 0;
 }
 
 void move_cursor_left() {
@@ -281,6 +405,29 @@ void move_cursor_left() {
             dspmyrow = 0;
             dspmycol = 0;
         }
+    }
+}
+
+void move_cursor_right() {
+    dspmycol++;
+    if (dspmycol == dsp_columns) {
+        dspmycol = 0;
+        move_cursor_down();
+    }
+}
+
+void move_cursor_up() {
+    dspmyrow--;
+    if (dspmyrow < 0) {
+        dspmyrow = 0;
+    }
+}
+
+void move_cursor_down() {
+    dspmyrow++;
+    if (dspmyrow == dsp_rows) {
+        scroll();
+        dspmyrow = dsp_rows-1;
     }
 }
 
@@ -324,131 +471,5 @@ void handle_end() {
     }
     if (dspmycol < dsp_columns-1) {
         dspmycol++;
-    }
-}
-
-void move_cursor_up() {
-    dspmyrow--;
-    if (dspmyrow < 0) {
-        dspmyrow = 0;
-    }
-}
-
-void move_cursor_down() {
-    dspmyrow++;
-    if (dspmyrow == dsp_rows) {
-        scroll();
-        dspmyrow = dsp_rows-1;
-    }
-}
-
-void move_cursor_right() {
-    dspmycol++;
-    if (dspmycol == dsp_columns) {
-        dspmycol = 0;
-        move_cursor_down();
-    }
-}
-
-int handle_control_keydown(SDL_Scancode scancode) {
-    switch(scancode) {
-        case SDL_SCANCODE_LSHIFT:
-        case SDL_SCANCODE_RSHIFT:
-            term_shift = 1;
-            return 1;
-        case SDL_SCANCODE_CAPSLOCK:
-        case SDL_SCANCODE_LCTRL:
-        case SDL_SCANCODE_RCTRL:
-            term_ctrl = 1;
-            return 1;
-        case SDL_SCANCODE_F12:
-            term_reset();
-            draw();
-            if (!term_interactive) {
-                term_lastkey = '#';
-            }
-            return 1;
-    }
-    return 0;
-}
-
-void term_reset() {
-    SDL_SetRenderTarget(term_renderer, term_canvas);
-    SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
-    SDL_RenderClear(term_renderer);
-    SDL_SetRenderTarget(term_renderer, NULL);
-    term_pen.r = 255;
-    term_pen.g = 255;
-    term_pen.b = 0;
-    term_clear();
-    term_mode = 0;
-}
-
-int handle_cursor_keys(SDL_Scancode scancode) {
-    switch(scancode) {
-        case SDL_SCANCODE_LEFT:
-            move_cursor_left();
-            return 1;
-        case SDL_SCANCODE_RIGHT:
-            move_cursor_right();
-            return 1;
-        case SDL_SCANCODE_UP:
-            move_cursor_up();
-            return 1;
-        case SDL_SCANCODE_DOWN:
-            move_cursor_down();
-            return 1;
-        case SDL_SCANCODE_INSERT:
-            handle_insert();
-            return 1;
-        case SDL_SCANCODE_HOME:
-            handle_home();
-            return 1;
-        case SDL_SCANCODE_END:
-            handle_end();
-            return 1;
-    }
-    return 0;
-}
-
-int decode_scancode(SDL_Scancode scancode) {
-    char *keys = scancodemap[scancode];
-    if(keys == NULL) {
-        return 0;
-    }
-    char key = keys[term_shift];
-    if(term_ctrl) {
-        key &= 037;
-    }
-    return key;
-}
-
-void handle_interactive_mode(char key, char *b, short nb) {
-    if (key == '\n') {
-        char c;
-        z.a=1;
-        while(z.a < nb && z.a < dsp_columns) {
-            c=term_chars[dspmyrow][z.a-1];
-            b[z.a++]=c;
-        }
-        b[z.a]=0x00;
-        z.a--;
-        b[0]=(unsigned char)z.a;
-        term_interactive = 0;
-    }
-    dspwrite(key);
-}
-
-void handle_control_keyup(SDL_Scancode scancode) {
-    switch(scancode) {
-        case SDL_SCANCODE_LSHIFT:
-        case SDL_SCANCODE_RSHIFT:
-            term_shift = 0;
-            return;
-        case SDL_SCANCODE_CAPSLOCK:
-        case SDL_SCANCODE_LCTRL:
-        case SDL_SCANCODE_RCTRL:
-            term_ctrl = 0;
-            return;
     }
 }
