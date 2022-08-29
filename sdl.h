@@ -303,6 +303,14 @@ void handle_backspace() {
     }
 }
 
+void handle_insert() {
+    for (int x = dsp_columns-1; x > dspmycol ; x--) {
+        term_chars[dspmyrow][x] = term_chars[dspmyrow][x-1];
+        term_colors[dspmyrow][x] = term_colors[dspmyrow][x-1];
+    }
+    term_chars[dspmyrow][dspmycol] = ' ';
+}
+
 void move_cursor_up() {
     dspmyrow--;
     if (dspmyrow < 0) {
@@ -373,6 +381,9 @@ int handle_cursor_keys(SDL_Scancode scancode) {
             return 1;
         case SDL_SCANCODE_DOWN:
             move_cursor_down();
+            return 1;
+        case SDL_SCANCODE_INSERT:
+            handle_insert();
             return 1;
     }
     return 0;
