@@ -311,6 +311,22 @@ void handle_insert() {
     term_chars[dspmyrow][dspmycol] = ' ';
 }
 
+void handle_home() {
+    dspmycol=0;
+}
+
+void handle_end() {
+    int x;
+    for (dspmycol = dsp_columns-1; dspmycol >= 0; dspmycol--) {
+        if (term_chars[dspmyrow][dspmycol] != ' ') {
+            break;
+        }
+    }
+    if (dspmycol < dsp_columns-1) {
+        dspmycol++;
+    }
+}
+
 void move_cursor_up() {
     dspmyrow--;
     if (dspmyrow < 0) {
@@ -385,6 +401,12 @@ int handle_cursor_keys(SDL_Scancode scancode) {
         case SDL_SCANCODE_INSERT:
             handle_insert();
             return 1;
+        case SDL_SCANCODE_HOME:
+            handle_home();
+            return 1;
+        case SDL_SCANCODE_END:
+            handle_end();
+            return 1;
     }
     return 0;
 }
@@ -430,7 +452,3 @@ void handle_control_keyup(SDL_Scancode scancode) {
             return;
     }
 }
-
-
-
-
