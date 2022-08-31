@@ -112,7 +112,6 @@ char dspactive() {return FALSE; }
 void dspsetscrollmode(char c, short l) {}
 void dspsetcursor(short c, short r) {}
 void vgacolor(short c) {}
-void circle(int x0, int y0, int r) {}
 void vgabegin(){}
 void vgawrite(char c){}
 #ifndef SDL
@@ -126,6 +125,7 @@ void plot(int x, int y) {}
 void line(int x0, int y0, int x1, int y1)   {}
 void rect(int x0, int y0, int x1, int y1)   {}
 void frect(int x0, int y0, int x1, int y1)  {}
+void circle(int x0, int y0, int r) {}
 void fcircle(int x0, int y0, int r) {}
 #endif
 
