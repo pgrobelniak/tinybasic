@@ -101,10 +101,8 @@ void term_clear() {
 }
 
 void term_reset() {
-    SDL_SetRenderTarget(term_renderer, term_canvas);
     SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
     SDL_RenderClear(term_renderer);
-    SDL_SetRenderTarget(term_renderer, NULL);
     term_pen.r = 255;
     term_pen.g = 255;
     term_pen.b = 0;
@@ -120,6 +118,7 @@ void draw() {
     r.y = 0;
     r.w = CHAR_WIDTH*SCALE;
     r.h = CHAR_HEIGHT*SCALE;
+    SDL_SetRenderTarget(term_renderer, NULL);
     SDL_SetRenderDrawColor(term_renderer, 255, 255, 255, 255);
     SDL_RenderCopy(term_renderer, term_canvas, NULL, NULL);
     SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
@@ -143,6 +142,7 @@ void draw() {
     if (!term_mode) {
         SDL_RenderPresent(term_renderer);
     }
+    SDL_SetRenderTarget(term_renderer, term_canvas);
 }
 
 void scroll() {
@@ -347,6 +347,7 @@ void dspbegin() {
     term_userev = SDL_RegisterEvents(1);
     SDL_CreateThread(blink_thread, "Blink", (void*)NULL);
     create_font();
+    SDL_SetRenderTarget(term_renderer, term_canvas);
     term_reset();
 }
 
@@ -383,21 +384,22 @@ void rgbcolor(int r, int g, int b) {
     term_pen.b = b;
 }
 
+void line(int x0, int y0, int x1, int y1) {
+    
+}
+
 void frect(int x0, int y0, int x1, int y1)  {
     SDL_Rect rect;
     rect.x = x0;
     rect.y = y0;
     rect.w = x1 - x0;
     rect.h = y1 - y0;
-    SDL_SetRenderTarget(term_renderer, term_canvas);
     SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     SDL_RenderFillRect(term_renderer, &rect);
-    SDL_SetRenderTarget(term_renderer, NULL);
     draw();
 }
 
 void fcircle(int x0, int y0, int r) {
-    SDL_SetRenderTarget(term_renderer, term_canvas);
     SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     for (int w = 0; w < r * 2; w++) {
         for (int h = 0; h < r * 2; h++) {
@@ -408,7 +410,6 @@ void fcircle(int x0, int y0, int r) {
             }
         }
     }
-    SDL_SetRenderTarget(term_renderer, NULL);
     draw();
 }
 
