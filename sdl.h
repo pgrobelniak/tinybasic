@@ -112,6 +112,7 @@ void term_reset() {
 }
 
 void draw() {
+    if (term_mode) return;
     int x, y, c;
     Pen p;
     SDL_Rect r;
@@ -139,9 +140,7 @@ void draw() {
             }
         }
     }
-    if (!term_mode) {
-        SDL_RenderPresent(term_renderer);
-    }
+    SDL_RenderPresent(term_renderer);
     SDL_SetRenderTarget(term_renderer, term_canvas);
 }
 
