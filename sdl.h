@@ -395,6 +395,16 @@ void line(int x0, int y0, int x1, int y1) {
     draw();
 }
 
+void rect(int x0, int y0, int x1, int y1) {
+    SDL_Rect rect;
+    rect.x = x0;
+    rect.y = y0;
+    rect.w = x1 - x0;
+    rect.h = y1 - y0;
+    SDL_RenderDrawRect(term_renderer, &rect);
+    draw();
+}
+
 void frect(int x0, int y0, int x1, int y1)  {
     SDL_Rect rect;
     rect.x = x0;
