@@ -384,6 +384,11 @@ void rgbcolor(int r, int g, int b) {
     term_pen.b = b;
 }
 
+void plot(int x, int y) {
+    SDL_RenderDrawPoint(term_renderer, x, y);
+    draw();
+}
+
 void line(int x0, int y0, int x1, int y1) {
     SDL_RenderDrawLine(term_renderer, x0, y0, x1, y1);
     draw();
