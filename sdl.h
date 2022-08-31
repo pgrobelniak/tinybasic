@@ -449,6 +449,7 @@ void circle(int x, int y, int radius) {
             offsetx += 1;
         }
     }
+    draw();
 }
 
 void fcircle(int x0, int y0, int r) {
