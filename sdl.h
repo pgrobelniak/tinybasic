@@ -106,6 +106,7 @@ void term_reset() {
     term_pen.r = 255;
     term_pen.g = 255;
     term_pen.b = 0;
+    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     term_clear();
     term_mode = 0;
 }
@@ -119,7 +120,6 @@ void draw() {
     r.w = CHAR_WIDTH*SCALE;
     r.h = CHAR_HEIGHT*SCALE;
     SDL_SetRenderTarget(term_renderer, NULL);
-    SDL_SetRenderDrawColor(term_renderer, 255, 255, 255, 255);
     SDL_RenderCopy(term_renderer, term_canvas, NULL, NULL);
     SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     for(x = 0; x < dsp_columns; x++) {
@@ -382,6 +382,7 @@ void rgbcolor(int r, int g, int b) {
     term_pen.r = r;
     term_pen.g = g;
     term_pen.b = b;
+    SDL_SetRenderDrawColor(term_renderer, r, g, b, 255);
 }
 
 void plot(int x, int y) {
@@ -400,13 +401,11 @@ void frect(int x0, int y0, int x1, int y1)  {
     rect.y = y0;
     rect.w = x1 - x0;
     rect.h = y1 - y0;
-    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     SDL_RenderFillRect(term_renderer, &rect);
     draw();
 }
 
 void fcircle(int x0, int y0, int r) {
-    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     for (int w = 0; w < r * 2; w++) {
         for (int h = 0; h < r * 2; h++) {
             int dx = r-w;
