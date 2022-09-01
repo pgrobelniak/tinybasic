@@ -34,6 +34,7 @@ typedef struct {
 SDL_Window *term_window;
 SDL_Renderer *term_renderer;
 SDL_Texture *term_font[128];
+SDL_Texture *term_cursor[128];
 SDL_Texture *term_canvas;
 char term_chars[dsp_rows][dsp_columns];
 Pen term_colors[dsp_rows][dsp_columns];
@@ -65,12 +66,15 @@ int blink_thread(void *arg) {
 }
 
 
-void create_char(Uint32 *raster, int c) {
+void create_char(Uint32 *raster, int c, int inv) {
     Uint8 *chr = &vt52rom[c*8];
     memset(raster, 0, CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
+    int fill;
     for(int i = 0; i < 8; i++) {
         for(int j = 0; j < 7; j++) {
-            if(chr[i]&(0100>>j)) {
+            fill = chr[i]&(0100>>j);
+            if (inv) fill = !fill;
+            if(fill) {
                 raster[(i*2)*CHAR_WIDTH+j]=0xFFFFFFFF;
                 raster[(i*2+1)*CHAR_WIDTH+j]=0xFFFFFFFF;
             }
@@ -81,11 +85,16 @@ void create_char(Uint32 *raster, int c) {
 void create_font() {
     Uint32 *raster = malloc(CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
     for(int i = 0; i < 128; i++) {
-        create_char(raster, i);
+        create_char(raster, i, 0);
         term_font[i] = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, CHAR_WIDTH, CHAR_HEIGHT);
         SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_ADD);
         SDL_UpdateTexture(term_font[i], NULL, raster, CHAR_WIDTH*sizeof(Uint32));
         SDL_SetTextureBlendMode(term_font[i], SDL_BLENDMODE_BLEND);
+        create_char(raster, i, 1);
+        term_cursor[i] = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, CHAR_WIDTH, CHAR_HEIGHT);
+        SDL_SetTextureBlendMode(term_cursor[i], SDL_BLENDMODE_ADD);
+        SDL_UpdateTexture(term_cursor[i], NULL, raster, CHAR_WIDTH*sizeof(Uint32));
+        SDL_SetTextureBlendMode(term_cursor[i], SDL_BLENDMODE_BLEND);
     }
 }
 
@@ -122,21 +131,23 @@ void draw() {
     r.h = CHAR_HEIGHT*SCALE;
     SDL_SetRenderTarget(term_renderer, NULL);
     SDL_RenderCopy(term_renderer, term_canvas, NULL, NULL);
-    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     for(x = 0; x < dsp_columns; x++) {
         for(y = 0; y < dsp_rows; y++) {
             c = term_chars[y][x];
             p = term_colors[y][x];
+            if (c >= 128) c = 32;
             if(c < 128) {
+                SDL_Texture *font;
+                if (term_interactive && term_blink && x == dspmycol && y == dspmyrow) {
+                    font = term_cursor[c];
+                    SDL_SetTextureColorMod(font, term_pen.r, term_pen.g, term_pen.b);
+                } else {
+                    font = term_font[c];
+                    SDL_SetTextureColorMod(font, p.r, p.g, p.b);
+                }
                 r.x = (x*CHAR_WIDTH*SCALE);
                 r.y = (y*CHAR_HEIGHT*SCALE);
-                SDL_SetTextureColorMod(term_font[c], p.r, p.g, p.b);
-                SDL_RenderCopy(term_renderer, term_font[c], NULL, &r);
-            }
-            if (term_interactive && term_blink && x == dspmycol && y == dspmyrow) {
-                r.x = (x*CHAR_WIDTH*SCALE);
-                r.y = (y*CHAR_HEIGHT*SCALE);
-                SDL_RenderFillRect(term_renderer, &r);
+                SDL_RenderCopy(term_renderer, font, NULL, &r);
             }
         }
     }
