@@ -632,6 +632,10 @@ number_t getvar(mem_t c, mem_t d){
 			case 'Y':
 				return dspmyrow;
 #endif
+#ifdef SDL
+            case 'T':
+                return dspticks();
+#endif
 		}
 
 #ifdef HASAPPLE1

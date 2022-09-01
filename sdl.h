@@ -537,3 +537,7 @@ void consins_sdl(char *buffer, short nb) {
         draw();
     }
 }
+
+int dspticks() {
+    return SDL_GetTicks();
+}
