@@ -331,8 +331,8 @@ int handle_cursor_keys(SDL_Scancode scancode) {
     return 0;
 }
 
-/* 
- * Display functions 
+/*
+ * Display functions
  */
 
 void dspbegin() {
@@ -404,7 +404,7 @@ void rect(int x0, int y0, int x1, int y1) {
     draw();
 }
 
-void frect(int x0, int y0, int x1, int y1)  {
+void frect(int x0, int y0, int x1, int y1) {
     SDL_Rect rect;
     rect.x = x0;
     rect.y = y0;
@@ -415,12 +415,10 @@ void frect(int x0, int y0, int x1, int y1)  {
 }
 
 void circle(int x, int y, int radius) {
-    int offsetx, offsety, d;
-    int status;
-    offsetx = 0;
-    offsety = radius;
-    d = radius -1;
-    status = 0;
+    int offsetx = 0;
+    int offsety = radius;
+    int d = radius -1;
+    int status = 0;
     while (offsety >= offsetx) {
         status += SDL_RenderDrawPoint(term_renderer, x + offsetx, y + offsety);
         status += SDL_RenderDrawPoint(term_renderer, x + offsety, y + offsetx);
@@ -437,12 +435,10 @@ void circle(int x, int y, int radius) {
         if (d >= 2*offsetx) {
             d -= 2*offsetx + 1;
             offsetx +=1;
-        }
-        else if (d < 2 * (radius - offsety)) {
+        } else if (d < 2 * (radius - offsety)) {
             d += 2 * offsety - 1;
             offsety -= 1;
-        }
-        else {
+        } else {
             d += 2 * (offsety - offsetx - 1);
             offsety -= 1;
             offsetx += 1;
@@ -464,8 +460,8 @@ void fcircle(int x0, int y0, int r) {
     draw();
 }
 
-/* 
- * Keyboard functions 
+/*
+ * Keyboard functions
  */
 
 char kbdavailable() {
