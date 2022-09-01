@@ -62,9 +62,6 @@ int blink_thread(void *arg) {
         if (term_interactive) {
             SDL_PushEvent(&ev);
         }
-        if (term_keystate[SDL_SCANCODE_DOWN]) {
-            printf("DOWN!\n");
-        }
     }
     return 0;
 }
