@@ -364,7 +364,7 @@ void ifileclose(){
 
 char ofileopen(char* filename, const char* m){
 	ofile=fopen(filename, m);
-	return (int) ofile; 
+	return (ofile == NULL ? 0 : 1);
 }
 
 void ofileclose(){ if (ofile) fclose(ofile); }
