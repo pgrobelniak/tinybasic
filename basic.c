@@ -3366,6 +3366,14 @@ void xint() { push(floor(pop())); }
 void xint() {}
 #endif
 
+#ifdef SDL
+void xinkey() {
+    short s;
+    s=pop();
+    push(kbdpressed(s));
+}
+#endif
+
 /*
  * Recursive expression parser functions 
  *
@@ -3635,6 +3643,11 @@ void factor(){
 			if (mqttstate() == 0) x+=2;
 			push(x);
 			break;
+#endif
+#ifdef SDL
+        case TINKEY:
+            parsefunction(xinkey, 1);
+            break;
 #endif
 
 /* unknown function */

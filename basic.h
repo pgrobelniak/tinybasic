@@ -229,6 +229,7 @@ typedef unsigned char uint8_t;
 #define TWIRE	-25
 #define TSLEEP	-24
 /* constants used for some obscure purposes */
+#define TINKEY  -23
 #define TBUFFER -2
 /* UNKNOWN is not used in the current code, the 
  * lexer tokenizes everything blindly. There is a UNKNOWN hook 
@@ -414,6 +415,9 @@ const char ssensor[]	PROGMEM  = "SENSOR";
 const char swire[]		PROGMEM  = "WIRE";
 const char ssleep[]		PROGMEM  = "SLEEP";
 #endif
+#ifdef SDL
+const char sinkey[]     PROGMEM  = "INKEY";
+#endif
 
 /* zero terminated keyword storage */
 const char* const keyword[] PROGMEM = {
@@ -470,6 +474,9 @@ const char* const keyword[] PROGMEM = {
 	sassign, savail, sstr, sinstr, sval, 
 	snetstat, ssensor, swire, ssleep, 
 #endif
+#ifdef SDL
+    sinkey,
+#endif
 	0
 };
 
@@ -525,6 +532,9 @@ const signed char tokens[] PROGMEM = {
 #ifdef HASIOT
 	TASSIGN, TAVAIL, TSTR, TINSTR, TVAL, TNETSTAT,
 	TSENSOR, TWIRE, TSLEEP,
+#endif
+#ifdef SDL
+    TINKEY,
 #endif
 	0
 };

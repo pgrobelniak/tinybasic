@@ -46,6 +46,7 @@ Pen term_pen;
 volatile int term_interactive = 0;
 char term_lastkey = 0;
 char term_mode = 0;
+const Uint8 *term_keystate;
 
 /*
  * Internal functions
@@ -60,6 +61,9 @@ int blink_thread(void *arg) {
         SDL_Delay(500);
         if (term_interactive) {
             SDL_PushEvent(&ev);
+        }
+        if (term_keystate[SDL_SCANCODE_DOWN]) {
+            printf("DOWN!\n");
         }
     }
     return 0;
@@ -110,10 +114,10 @@ void term_clear() {
 }
 
 void term_reset() {
-    SDL_SetRenderDrawColor(term_renderer, 0, 0, 255, 255);
+    SDL_SetRenderDrawColor(term_renderer, 255, 255, 255, 255);
     SDL_RenderClear(term_renderer);
-    term_pen.r = 255;
-    term_pen.g = 255;
+    term_pen.r = 0;
+    term_pen.g = 0;
     term_pen.b = 0;
     SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     term_clear();
@@ -348,6 +352,7 @@ int handle_cursor_keys(SDL_Scancode scancode) {
 
 void dspbegin() {
     SDL_Init(SDL_INIT_VIDEO);
+    term_keystate = SDL_GetKeyboardState(NULL);
     if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH*SCALE, WINDOW_HEIGHT*SCALE, SDL_WINDOW_OPENGL, &term_window, &term_renderer) < 0) {
         fprintf(stderr, "%s\n", SDL_GetError());
         exit(1);
@@ -386,6 +391,10 @@ void dspsetupdatemode(char c) {
     if (!c) {
         draw();
     }
+}
+
+int dspticks() {
+    return SDL_GetTicks();
 }
 
 void rgbcolor(int r, int g, int b) {
@@ -510,6 +519,10 @@ char kbdread() {
     return key;
 }
 
+int kbdpressed(int scancode) {
+    return term_keystate[scancode];
+}
+
 /*
  * reading from console - interactive mode
  * allows for moving around the screen using cursor keys
@@ -538,6 +551,4 @@ void consins_sdl(char *buffer, short nb) {
     }
 }
 
-int dspticks() {
-    return SDL_GetTicks();
-}
+
