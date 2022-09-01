@@ -429,7 +429,6 @@ void circle(int x, int y, int radius) {
         status += SDL_RenderDrawPoint(term_renderer, x - offsetx, y - offsety);
         status += SDL_RenderDrawPoint(term_renderer, x - offsety, y - offsetx);
         if (status < 0) {
-            status = -1;
             break;
         }
         if (d >= 2*offsetx) {
