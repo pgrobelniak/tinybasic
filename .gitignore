@@ -4,3 +4,5 @@ basic
 eeprom.dat
 
 a.out
+/basic.exe
+/basic.o
