@@ -17,11 +17,11 @@
 310 REM "Disable drawing
 320 SET 10,1
 330 REM "Calculate elapsed time"
-340 T=@T: E=(T-L)/1000: L=T
+340 T=@T: E=T-L: L=T
 350 REM "Delay if elapsed time less than frame time"
-360 IF E<FT THEN DELAY FT-E
+360 IF E<FT THEN DELAY FT-E: PRINT FT-E
 370 REM "Apply velocity"
-380 X=X+VX*E: Y=Y+VY*E
+380 X=X+VX*E/1000: Y=Y+VY*E/1000
 390 REM "Bounce if out of screen"
 400 IF X+D=>SW THEN X=SW-D: VX=-S
 410 IF X<0 THEN X=0: VX=S
