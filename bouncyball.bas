@@ -1,24 +1,38 @@
-1 S=10
-5 SW=640
-6 SH=480
-20 W=50
-30 X=(SW-W)/2
-31 Y=(SH-W)/2
-40 DX=1
-41 DY=1
-45 COLOR 0,0,0
-46 FRECT 0,0,SW,SH
-50 SET 10,1
-51 COLOR 0,0,0
-60 FRECT 0,0,SW,SH
-100 X=X+DX*S
-101 Y=Y+DY*S
-110 IF X+W=>SW THEN X=SW-W: DX=DX*(-1)
-115 IF X<0 THEN X=0: DX=DX*(-1)
-116 IF Y+W>SH THEN Y=SH-W: DY=DY*(-1)
-117 IF Y<0 THEN Y=0: DY=DY*(-1)
-120 COLOR 255,255,255
-130 FCIRCLE X+W/2,Y+W/2,W/2
-139 SET 10,0
-140 DELAY 50
-150 GOTO 50
+100 REM "Screen size"
+110 SW=640
+120 SH=480 
+130 REM "Ball diameter"
+140 D=50
+150 REM "Ball speed in pixels per sec"
+160 S=200
+170 REM "Frame time for 60 fps"
+180 FT=1000/60
+190 REM "Initial position"
+200 X=(SW-D)/2: Y=(SH-D)/2 
+210 REM "Initial velocity"
+220 VX=S: VY=S 
+230 REM "Last frame time"
+240 L=@T
+300 REM "Frame start"
+310 REM "Disable drawing
+320 SET 10,1
+330 REM "Calculate elapsed time"
+340 T=@T: E=(T-L)/1000: L=T
+350 REM "Delay if elapsed time less than frame time"
+360 IF E<FT THEN DELAY FT-E
+370 REM "Apply velocity"
+380 X=X+VX*E: Y=Y+VY*E
+390 REM "Bounce if out of screen"
+400 IF X+D=>SW THEN X=SW-D: VX=-S
+410 IF X<0 THEN X=0: VX=S
+420 IF Y+D=>SH THEN Y=SH-D: VY=-S
+430 IF Y<0 THEN Y=0: VY=S
+440 REM "Clear screen"
+450 COLOR 255,255,255
+460 FRECT 0,0,SW,SH
+470 REM "Draw ball"
+480 COLOR 0,0,0
+490 FCIRCLE X+D/2,Y+D/2,D/2
+500 REM "Enable drawing (show frame)"
+510 SET 10,0
+520 GOTO 300
