@@ -19,7 +19,7 @@
 330 REM "Calculate elapsed time"
 340 T=@T: E=T-L: L=T
 350 REM "Delay if elapsed time less than frame time"
-360 IF E<FT THEN DELAY FT-E: PRINT FT-E
+360 IF E<FT THEN DELAY FT-E
 370 REM "Apply velocity"
 380 X=X+VX*E/1000: Y=Y+VY*E/1000
 390 REM "Bounce if out of screen"
