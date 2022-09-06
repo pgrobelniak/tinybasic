@@ -14,17 +14,17 @@
 #define HASKEYBOARD
 
 #define dsp_columns 80
-#define dsp_rows 24
+#define dsp_rows 60
 
 int dspmycol = 0;
 int dspmyrow = 0;
 
-float dsp_scale = 1;
+float dsp_scale = 2;
 float dsp_offx = 0;
 float dsp_offy = 0;
 
 #define CHAR_WIDTH 8
-#define CHAR_HEIGHT 20
+#define CHAR_HEIGHT 8
 
 #define WINDOW_WIDTH dsp_columns*CHAR_WIDTH // 640
 #define WINDOW_HEIGHT dsp_rows*CHAR_HEIGHT // 480
@@ -74,12 +74,11 @@ void create_char(Uint32 *raster, int c, int inv) {
     memset(raster, 0, CHAR_WIDTH*CHAR_HEIGHT*sizeof(Uint32));
     int fill;
     for(int i = 0; i < 8; i++) {
-        for(int j = 0; j < 7; j++) {
+        for(int j = 0; j < 8; j++) {
             fill = chr[i]&(0100>>j);
             if (inv) fill = !fill;
             if(fill) {
-                raster[(i*2)*CHAR_WIDTH+j]=0xFFFFFFFF;
-                raster[(i*2+1)*CHAR_WIDTH+j]=0xFFFFFFFF;
+                raster[i*CHAR_WIDTH+j]=0xFFFFFFFF;
             }
         }
     }
@@ -373,11 +372,13 @@ void handle_window_event(SDL_WindowEvent e) {
 void dspbegin() {
     SDL_Init(SDL_INIT_VIDEO);
     term_keystate = SDL_GetKeyboardState(NULL);
-    if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &term_window, &term_renderer) < 0) {
+    if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH*dsp_scale, WINDOW_HEIGHT*dsp_scale, SDL_WINDOW_RESIZABLE, &term_window, &term_renderer) < 0) {
         fprintf(stderr, "%s\n", SDL_GetError());
         exit(1);
     }
     SDL_SetWindowTitle(term_window, "Basic");
+    //SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    //SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
     term_canvas = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
     term_userev = SDL_RegisterEvents(1);
     SDL_CreateThread(blink_thread, "Blink", (void*)NULL);
@@ -561,7 +562,9 @@ void consins_sdl(char *buffer, short nb) {
         case SDL_QUIT:
             quit();
         case SDL_KEYDOWN:
-            if (!handle_control_keydown(ev.key.keysym.scancode) && !handle_cursor_keys(ev.key.keysym.scancode)) {
+            if(handle_cursor_keys(ev.key.keysym.scancode)) {
+                term_blink = 1;
+            } else if (!handle_control_keydown(ev.key.keysym.scancode)) {
                 char key = decode_scancode(ev.key.keysym.scancode);
                 handle_interactive_mode(key, buffer, nb);
             }
