@@ -7,7 +7,7 @@
 
 #include <SDL.h>
 #include "scancodes.h"
-#include "vt52rom.h"
+#include "petscii.h"
 
 #define STANDALONE
 #define DISPLAYDRIVER
