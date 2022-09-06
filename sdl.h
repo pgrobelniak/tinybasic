@@ -19,7 +19,9 @@
 int dspmycol = 0;
 int dspmyrow = 0;
 
-#define SCALE 1
+float dsp_scale = 1;
+float dsp_offx = 0;
+float dsp_offy = 0;
 
 #define CHAR_WIDTH 8
 #define CHAR_HEIGHT 20
@@ -126,12 +128,17 @@ void draw() {
     int x, y, c;
     Pen p;
     SDL_Rect r;
-    r.x = 0;
-    r.y = 0;
-    r.w = CHAR_WIDTH*SCALE;
-    r.h = CHAR_HEIGHT*SCALE;
+    r.x = dsp_offx;
+    r.y = dsp_offy;
+    r.w = WINDOW_WIDTH * dsp_scale;
+    r.h = WINDOW_HEIGHT * dsp_scale;
     SDL_SetRenderTarget(term_renderer, NULL);
-    SDL_RenderCopy(term_renderer, term_canvas, NULL, NULL);
+    SDL_SetRenderDrawColor(term_renderer, 0, 0, 0, 255);
+    SDL_RenderClear(term_renderer);
+    SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
+    SDL_RenderCopy(term_renderer, term_canvas, NULL, &r);
+    r.w = CHAR_WIDTH*dsp_scale;
+    r.h = CHAR_HEIGHT*dsp_scale;
     for(x = 0; x < dsp_columns; x++) {
         for(y = 0; y < dsp_rows; y++) {
             c = term_chars[y][x];
@@ -146,8 +153,8 @@ void draw() {
                     font = term_font[c];
                     SDL_SetTextureColorMod(font, p.r, p.g, p.b);
                 }
-                r.x = (x*CHAR_WIDTH*SCALE);
-                r.y = (y*CHAR_HEIGHT*SCALE);
+                r.x = dsp_offx + (x*CHAR_WIDTH*dsp_scale);
+                r.y = dsp_offy + (y*CHAR_HEIGHT*dsp_scale);
                 SDL_RenderCopy(term_renderer, font, NULL, &r);
             }
         }
@@ -343,6 +350,22 @@ int handle_cursor_keys(SDL_Scancode scancode) {
     return 0;
 }
 
+void calculate_scale(int w, int h) {
+    float ws = w / ((float)WINDOW_WIDTH);
+    float wh = h / ((float)WINDOW_HEIGHT);
+    dsp_scale = ws < wh ? ws : wh;
+    dsp_offx = (w - WINDOW_WIDTH * dsp_scale) / 2;
+    dsp_offy = (h - WINDOW_HEIGHT * dsp_scale) / 2;
+}
+
+void handle_window_event(SDL_WindowEvent e) {
+    switch(e.event) {
+    case SDL_WINDOWEVENT_SIZE_CHANGED:
+        calculate_scale(e.data1, e.data2);
+        break;
+    }
+}
+
 /*
  * Display functions
  */
@@ -350,7 +373,7 @@ int handle_cursor_keys(SDL_Scancode scancode) {
 void dspbegin() {
     SDL_Init(SDL_INIT_VIDEO);
     term_keystate = SDL_GetKeyboardState(NULL);
-    if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH*SCALE, WINDOW_HEIGHT*SCALE, SDL_WINDOW_OPENGL, &term_window, &term_renderer) < 0) {
+    if(SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &term_window, &term_renderer) < 0) {
         fprintf(stderr, "%s\n", SDL_GetError());
         exit(1);
     }
@@ -502,6 +525,9 @@ char kbdcheckch() {
         case SDL_KEYUP:
             handle_control_keyup(ev.key.keysym.scancode);
             break;
+        case SDL_WINDOWEVENT:
+            handle_window_event(ev.window);
+            break;
         }
     }
     return term_lastkey;
@@ -542,6 +568,9 @@ void consins_sdl(char *buffer, short nb) {
             break;
         case SDL_KEYUP:
             handle_control_keyup(ev.key.keysym.scancode);
+            break;
+        case SDL_WINDOWEVENT:
+            handle_window_event(ev.window);
             break;
         }
         draw();
