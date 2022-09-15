@@ -578,7 +578,7 @@ const char mprompt[]	PROGMEM = "";
 #else
 const char mprompt[]	PROGMEM = "> ";
 #endif
-const char mgreet[]		PROGMEM = "Stefan's Basic 1.4a";
+const char mgreet[]		PROGMEM = "Stefan's Basic 1.4a Display driver 1.0";
 const char mline[]		PROGMEM = "LINE";
 const char mnumber[]	PROGMEM = "NUMBER";
 const char mvariable[]	PROGMEM = "VARIABLE";
