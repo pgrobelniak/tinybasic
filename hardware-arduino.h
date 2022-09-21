@@ -62,25 +62,25 @@
 #undef USESPICOSERIAL 
 #undef ARDUINOPS2
 #undef ARDUINOPRT
-#define DISPLAYCANSCROLL
+#undef DISPLAYCANSCROLL
 #undef ARDUINOLCDI2C
 #undef ARDUINONOKIA51
-#define ARDUINOILI9488
+#undef ARDUINOILI9488
 #undef ARDUINOSSD1306
 #undef LCDSHIELD
 #undef ARDUINOTFT
 #undef ARDUINOVGA
-#undef ARDUINOEEPROM
+#define ARDUINOEEPROM
 #undef ARDUINOEFS
-#define ARDUINOSD
+#undef ARDUINOSD
 #undef ESPSPIFFS
 #undef RP2040LITTLEFS
-#define ARDUINORTC
+#undef ARDUINORTC
 #undef ARDUINOWIRE
 #undef ARDUINOWIRESLAVE
 #undef ARDUINORF24
 #undef ARDUINOETH
-#define ARDUINOMQTT
+#undef ARDUINOMQTT
 #undef ARDUINOSENSORS
 #undef ARDUINOSPIRAM 
 #undef STANDALONE
@@ -114,6 +114,8 @@
  *    fits into an UNO flash only with integer
  * ESP01BOARD:
  *    ESP01 based board as a sensor / MQTT interface
+ * RP2040BOARD:
+ *    A ILI9488 hardware design based on an Arduino connect RP2040.
  */
 
 #undef UNOPLAIN
@@ -127,7 +129,7 @@
 #undef MEGABOARD
 #undef UNOBOARD
 #undef ESP01BOARD
-
+#undef RP2040BOARD
 
 /* 
  * PIN settings and I2C addresses for various hardware configurations
@@ -169,16 +171,19 @@
  * Sensor library code - experimental
  */
 #ifdef ARDUINOSENSORS
-#define ARDUINODHT
+#undef ARDUINODHT
 #define DHTTYPE DHT22
 #define DHTPIN 2
-#define ARDUINOSHT
+#undef ARDUINOSHT
 #ifdef ARDUINOSHT
 #define ARDUINOWIRE
 #endif
 #undef  ARDUINOMQ2
 #define MQ2PIN A0
 #undef ARDUINOLMS6
+#define ARDUINOAHT
+#undef ARDUINOBMP280
+#undef ARDUINOBME280
 #endif
 
 /*
@@ -326,6 +331,21 @@
 #define ARDUINOEEPROM
 #define ESPSPIFFS
 #define ARDUINOMQTT
+#endif
+
+/* an RP2040 based board with an ILI9488 display */
+#if defined(RP2040BOARD)
+#undef USESPICOSERIAL
+#define DISPLAYCANSCROLL
+#define ARDUINOILI9488
+#undef  ARDUINOEEPROM
+#define ARDUINOPRT
+#define RP2040LITTLEFS
+#define ARDUINOWIRE
+#define ARDUINORTC 
+#define ARDUINOPS2
+#define ARDUINOMQTT
+#define STANDALONE
 #endif
 
 /*
@@ -655,19 +675,19 @@ void wiringbegin() {}
 
 #if defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_ARCH_SAM)
 extern "C" char* sbrk(int incr);
-int freeRam() {
+long freeRam() {
   char top;
   return &top - reinterpret_cast<char*>(sbrk(0));
 }
 #elif defined(ARDUINO_ARCH_AVR) || defined(ARDUINO_ARCH_MEGAAVR)
-int freeRam() {
+long freeRam() {
   extern int __heap_start,*__brkval;
   int v;
   return (int)&v - (__brkval == 0  
     ? (int)&__heap_start : (int) __brkval);  
 }
 #elif defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_ESP8266)
-int freeRam() {
+long freeRam() {
   return ESP.getFreeHeap();
 }
 #else
@@ -827,12 +847,22 @@ void dspupdate() {}
  * This is a buffered display it has a dspupdate() function 
  * it also needs to call dspgraphupdate() after each graphic 
  * operation
+ *
+ * default PIN settings here are for ESP8266, using the standard 
+ * SPI SS for 15 for CS/CE, and 0 for DC, 2 for reset
+ *
  */ 
 #ifdef ARDUINONOKIA51
 #define DISPLAYDRIVER
-#define NOKIA_CS 4
+#ifndef NOKIA_CS
+#define NOKIA_CS 15
+#endif
+#ifndef NOKIA_DC
 #define NOKIA_DC 0
-#define NOKIA_RST 5
+#endif
+#ifndef NOKIA_RST
+#define NOKIA_RST 2
+#endif
 U8G2_PCD8544_84X48_F_4W_HW_SPI u8g2(U8G2_R0, NOKIA_CS, NOKIA_DC, NOKIA_RST); 
 const int dsp_rows=6;
 const int dsp_columns=10;
@@ -920,18 +950,21 @@ void fcircle(int x0, int y0, int r) { u8g2.drawDisc(x0, y0, r); dspgraphupdate()
 #define ILI_LED A3
 #endif
 ILI9488 tft = ILI9488(ILI_CS, ILI_DC, ILI_RST);
-const int dsp_rows=30;
-const int dsp_columns=20;
+/* ILI in landscape */
+const int dsp_rows=20;
+const int dsp_columns=30;
 char dspfontsize = 16;
 uint16_t dspfgcolor = ILI9488_WHITE;
 uint16_t dspbgcolor = ILI9488_BLACK;
 void dspbegin() { 
   tft.begin(); 
+  tft.setRotation(3); /* ILI in landscape, SD slot up */
   tft.setTextColor(dspfgcolor);
   tft.setTextSize(2);
   tft.fillScreen(dspbgcolor); 
   pinMode(ILI_LED, OUTPUT);
   analogWrite(ILI_LED, 255);
+  dspsetscrollmode(1, 4);
  }
 void dspprintchar(char c, short col, short row) { tft.drawChar(col*dspfontsize, row*dspfontsize, c, dspfgcolor, dspbgcolor, 2); }
 void dspclear() { tft.fillScreen(dspbgcolor); }
@@ -2715,7 +2748,7 @@ void consins(char *b, short nb) {
  * instance
  */
 #ifdef ARDUINOPRT
-#if !defined(ARDUINO_AVR_MEGA2560) && !defined(ARDUINO_SAM_DUE) && !defined(ARDUINO_AVR_NANO_EVERY)
+#if !defined(ARDUINO_AVR_MEGA2560) && !defined(ARDUINO_SAM_DUE) && !defined(ARDUINO_AVR_NANO_EVERY) && !defined(ARDUINO_NANO_RP2040_CONNECT)
 #include <SoftwareSerial.h>
 /* definition of the serial port pins from "pretzel board"
 for UNO 11 is not good for rx */
@@ -3029,16 +3062,43 @@ MQ2 mq2(MQ2PIN);
 #include <Arduino_LSM6DSOX.h>
 /* https://www.arduino.cc/en/Reference/Arduino_LSM6DSOX */
 #endif
+#ifdef ARDUINOAHT
+#include <Adafruit_AHTX0.h>
+Adafruit_AHTX0 aht;
+#endif
+#ifdef ARDUINOBMP280
+#include <Adafruit_BMP280.h>
+Adafruit_BMP280 bmp;
+#endif
+#ifdef ARDUINOBME280
+#include <Adafruit_BME280.h>
+Adafruit_BME280 bme;
+#endif
+
 
 void sensorbegin(){
 #ifdef ARDUINODHT
-  dht.begin();
+dht.begin();
 #endif
 #ifdef ARDUINOSHT
   SHT.Begin();
 #endif
 #ifdef ARDUINOMQ2
   mq2.begin();
+#endif
+#ifdef ARDUINOAHT
+  aht.begin();
+#endif
+#ifdef ARDUINOBMP280
+  bmp.begin(); 
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+#endif
+#ifdef ARDUINOBME280
+  bme.begin(); 
 #endif
 }
 
@@ -3089,6 +3149,51 @@ number_t sensorread(short s, short v) {
       }       
 #endif
       return 0;
+    case 4:
+#ifdef ARDUINOAHT
+      sensors_event_t humidity, temp;
+      switch (v) {
+        case 0:
+          return 1;
+        case 1:
+          aht.getEvent(&humidity, &temp);
+          return temp.temperature;
+        case 2:
+          aht.getEvent(&humidity, &temp);
+          return humidity.relative_humidity;
+      }       
+#endif
+      return 0;
+    case 5:
+#ifdef ARDUINOBMP280  
+      switch (v) {
+        case 0:
+          return 1;
+        case 1:
+          return bmp.readTemperature();
+        case 2:
+          return bmp.readPressure() / 100.0;
+        case 3:
+          return bmp.readAltitude(1013.25);
+      }       
+#endif
+      return 0;
+    case 6:
+#ifdef ARDUINOBME280
+      switch (v) {
+        case 0:
+          return 1;
+        case 1:
+          return bme.readTemperature();
+        case 2:
+          return bme.readPressure() / 100.0;
+        case 3:
+          return bme.readAltitude(1013.25);
+        case 4:
+          return bme.readHumidity();
+      }       
+#endif
+      return 0;  
     default:
       return 0;
   }

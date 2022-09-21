@@ -112,17 +112,24 @@
  *		TTGO VGA1.4 system with PS2 keyboard, standalone
  * MEGATFT, DUETFT
  *    TFT 7inch screen systems, standalone
- * NANOBOARD
+ * NANOBOARD:
  *   Arduino Nano Every board with PS2 keyboard and sensor 
  *    kit
- * ESP01BOARD
+ * MEGABOARD:
+ *  A board for the MEGA with 64 kB RAM, SD Card, and real time
+ *    clock
+ * UNOBOARD:
+ *  A board for an UNO with 64kB memory and EEPROM disk
+ *    fits into an UNO flash only with integer
+ * ESP01BOARD:
  *    ESP01 based board as a sensor / MQTT interface
+ * RP2040BOARD:
+ *    A ILI9488 hardware design based on an Arduino connect RP2040.
  */
 
 #undef UNOPLAIN
 #undef AVRLCD
 #undef WEMOSSHIELD
-#undef ESP01BOARD
 #undef MEGASHIELD
 #undef TTGOVGA
 #undef DUETFT
@@ -130,6 +137,8 @@
 #undef NANOBOARD
 #undef MEGABOARD
 #undef UNOBOARD
+#undef ESP01BOARD
+#undef RP2040BOARD
 
 /* 
  * PIN settings and I2C addresses for various hardware configurations
@@ -171,16 +180,19 @@
  * Sensor library code - experimental
  */
 #ifdef ARDUINOSENSORS
-#define ARDUINODHT
+#undef ARDUINODHT
 #define DHTTYPE DHT22
 #define DHTPIN 2
-#define ARDUINOSHT
+#undef ARDUINOSHT
 #ifdef ARDUINOSHT
 #define ARDUINOWIRE
 #endif
 #undef  ARDUINOMQ2
 #define MQ2PIN A0
 #undef ARDUINOLMS6
+#define ARDUINOAHT
+#undef ARDUINOBMP280
+#undef ARDUINOBME280
 #endif
 
 /*
@@ -218,12 +230,7 @@
 #define ARDUINOMQTT
 #endif
 
-/* an ESP01 board, using the internal flash */
-#if defined(ESP01BOARD)
-#define ARDUINOEEPROM
-#define ESPSPIFFS
-#define ARDUINOMQTT
-#endif
+
 
 /*
  * mega with a Ethernet shield 
@@ -282,6 +289,7 @@
 #define ARDUINOSD
 #define ARDUINOWIRE
 #define ARDUINOPRT
+#define ARDUINORTC
 #define PS2DATAPIN 9
 #define PS2IRQPIN  8
 #define SDPIN 53
@@ -302,6 +310,16 @@
 #define STANDALONE
 #endif
 
+/* a UNO shield with memory and EFS EEPROM */
+#if defined(UNOBOARD)
+#define ARDUINOEEPROM
+#define ARDUINOSPIRAM
+#define ARDUINOEFS
+#define ARDUINOWIRE
+#define EEPROMI2CADDR 0x050
+#define EFSEEPROMSIZE 65534
+#endif
+
 /* a MEGA shield with memory and SD card */
 #if defined(MEGABOARD)
 #undef USESPICOSERIAL
@@ -317,15 +335,28 @@
 #define SDPIN  49
 #endif
 
-/* a UNO shield with memory and EFS EEPROM */
-#if defined(UNOBOARD)
+/* an ESP01 board, using the internal flash */
+#if defined(ESP01BOARD)
 #define ARDUINOEEPROM
-#define ARDUINOSPIRAM
-#define ARDUINOEFS
-#define ARDUINOWIRE
-#define EEPROMI2CADDR 0x050
-#define EFSEEPROMSIZE 65534
+#define ESPSPIFFS
+#define ARDUINOMQTT
 #endif
+
+/* an RP2040 based board with an ILI9488 display */
+#if defined(RP2040BOARD)
+#undef USESPICOSERIAL
+#define DISPLAYCANSCROLL
+#define ARDUINOILI9488
+#undef  ARDUINOEEPROM
+#define ARDUINOPRT
+#define RP2040LITTLEFS
+#define ARDUINOWIRE
+#define ARDUINORTC 
+#define ARDUINOPS2
+#define ARDUINOMQTT
+#define STANDALONE
+#endif
+
 /*
  * defining the systype variable which informs BASIC about the platform at runtime
  */
@@ -349,7 +380,6 @@ const char bsystype = SYSTYPE_UNKNOWN;
 #include <avr/dtostrf.h>
 #define ARDUINO 100
 #endif
-
 
 /*
  * Some settings, defaults, and dependencies
@@ -654,19 +684,19 @@ void wiringbegin() {}
 
 #if defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_ARCH_SAM)
 extern "C" char* sbrk(int incr);
-int freeRam() {
+long freeRam() {
   char top;
   return &top - reinterpret_cast<char*>(sbrk(0));
 }
 #elif defined(ARDUINO_ARCH_AVR) || defined(ARDUINO_ARCH_MEGAAVR)
-int freeRam() {
+long freeRam() {
   extern int __heap_start,*__brkval;
   int v;
   return (int)&v - (__brkval == 0  
     ? (int)&__heap_start : (int) __brkval);  
 }
 #elif defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_ESP8266)
-int freeRam() {
+long freeRam() {
   return ESP.getFreeHeap();
 }
 #else
@@ -827,12 +857,22 @@ void dspupdate() {}
  * This is a buffered display it has a dspupdate() function 
  * it also needs to call dspgraphupdate() after each graphic 
  * operation
+ *
+ * default PIN settings here are for ESP8266, using the standard 
+ * SPI SS for 15 for CS/CE, and 0 for DC, 2 for reset
+ *
  */ 
 #ifdef ARDUINONOKIA51
 #define DISPLAYDRIVER
-#define NOKIA_CS 4
+#ifndef NOKIA_CS
+#define NOKIA_CS 15
+#endif
+#ifndef NOKIA_DC
 #define NOKIA_DC 0
-#define NOKIA_RST 5
+#endif
+#ifndef NOKIA_RST
+#define NOKIA_RST 2
+#endif
 U8G2_PCD8544_84X48_F_4W_HW_SPI u8g2(U8G2_R0, NOKIA_CS, NOKIA_DC, NOKIA_RST); 
 const int dsp_rows=6;
 const int dsp_columns=10;
@@ -902,20 +942,40 @@ void fcircle(int x0, int y0, int r) { u8g2.drawDisc(x0, y0, r); dspgraphupdate()
  * currently only slow software scrolling implemented in BASIC
  * although the library can do more
  * https://github.com/jaretburkett/ILI9488
+ * 
+ * we use 9, 8, 7 as CS, CE, RST by default and A7 for the led brightness control
  */ 
 #ifdef ARDUINOILI9488
 #define DISPLAYDRIVER
-#define ILI_CS  2
-#define ILI_DC  3  
-#define ILI_LED A0  
-#define ILI_RST 4 
+#ifndef ILI_CS
+#define ILI_CS  9
+#endif
+#ifndef ILI_DC
+#define ILI_DC  8
+#endif
+#ifndef ILI_RST
+#define ILI_RST 7
+#endif
+#ifndef ILI_LED
+#define ILI_LED A3
+#endif
 ILI9488 tft = ILI9488(ILI_CS, ILI_DC, ILI_RST);
-const int dsp_rows=30;
-const int dsp_columns=20;
+/* ILI in landscape */
+const int dsp_rows=20;
+const int dsp_columns=30;
 char dspfontsize = 16;
 uint16_t dspfgcolor = ILI9488_WHITE;
 uint16_t dspbgcolor = ILI9488_BLACK;
-void dspbegin() { tft.begin(); tft.setTextColor(dspfgcolor); tft.setTextSize(2); tft.fillScreen(dspbgcolor); }
+void dspbegin() { 
+  tft.begin(); 
+  tft.setRotation(3); /* ILI in landscape, SD slot up */
+  tft.setTextColor(dspfgcolor);
+  tft.setTextSize(2);
+  tft.fillScreen(dspbgcolor); 
+  pinMode(ILI_LED, OUTPUT);
+  analogWrite(ILI_LED, 255);
+  dspsetscrollmode(1, 4);
+ }
 void dspprintchar(char c, short col, short row) { tft.drawChar(col*dspfontsize, row*dspfontsize, c, dspfgcolor, dspbgcolor, 2); }
 void dspclear() { tft.fillScreen(dspbgcolor); }
 void dspupdate() {}
@@ -1931,10 +1991,10 @@ void eflush(){
 
 #if defined(ARDUINOEEPROM)
 address_t elength() { 
-#if defined(ARDUINO_ARCH_ESP8266) ||defined(ARDUINO_ARCH_ESP32)
+#if defined(ARDUINO_ARCH_ESP8266) || defined(ARDUINO_ARCH_ESP32)
   return EEPROMSIZE;
 #endif
-#ifdef ARDUINO_ARCH_AVR
+#if defined(ARDUINO_ARCH_AVR) || defined(ARDUINO_ARCH_MEGAAVR)
 #ifndef ARDUINO_AVR_LARDU_328E
   return EEPROM.length(); 
 #else 
@@ -2196,6 +2256,9 @@ const char* rmrootfsprefix(const char* filename) {
 /* 
  *	filesystem starter for SPIFFS and SD on ESP, ESP32 and Arduino plus LittleFS
  *	the verbose option needs to be checked 
+ * 
+ * if SDPIN is empty it is the standard SS pin of the platfrom
+ * 
  */
 void fsbegin(char v) {
 #ifdef ARDUINOSD 
@@ -2704,7 +2767,7 @@ void consins(char *b, short nb) {
  * instance
  */
 #ifdef ARDUINOPRT
-#if !defined(ARDUINO_AVR_MEGA2560) && !defined(ARDUINO_SAM_DUE) && !defined(ARDUINO_AVR_NANO_EVERY)
+#if !defined(ARDUINO_AVR_MEGA2560) && !defined(ARDUINO_SAM_DUE) && !defined(ARDUINO_AVR_NANO_EVERY) && !defined(ARDUINO_NANO_RP2040_CONNECT)
 #include <SoftwareSerial.h>
 /* definition of the serial port pins from "pretzel board"
 for UNO 11 is not good for rx */
@@ -3018,16 +3081,43 @@ MQ2 mq2(MQ2PIN);
 #include <Arduino_LSM6DSOX.h>
 /* https://www.arduino.cc/en/Reference/Arduino_LSM6DSOX */
 #endif
+#ifdef ARDUINOAHT
+#include <Adafruit_AHTX0.h>
+Adafruit_AHTX0 aht;
+#endif
+#ifdef ARDUINOBMP280
+#include <Adafruit_BMP280.h>
+Adafruit_BMP280 bmp;
+#endif
+#ifdef ARDUINOBME280
+#include <Adafruit_BME280.h>
+Adafruit_BME280 bme;
+#endif
+
 
 void sensorbegin(){
 #ifdef ARDUINODHT
-  dht.begin();
+dht.begin();
 #endif
 #ifdef ARDUINOSHT
   SHT.Begin();
 #endif
 #ifdef ARDUINOMQ2
   mq2.begin();
+#endif
+#ifdef ARDUINOAHT
+  aht.begin();
+#endif
+#ifdef ARDUINOBMP280
+  bmp.begin(); 
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+#endif
+#ifdef ARDUINOBME280
+  bme.begin(); 
 #endif
 }
 
@@ -3078,6 +3168,51 @@ number_t sensorread(short s, short v) {
       }       
 #endif
       return 0;
+    case 4:
+#ifdef ARDUINOAHT
+      sensors_event_t humidity, temp;
+      switch (v) {
+        case 0:
+          return 1;
+        case 1:
+          aht.getEvent(&humidity, &temp);
+          return temp.temperature;
+        case 2:
+          aht.getEvent(&humidity, &temp);
+          return humidity.relative_humidity;
+      }       
+#endif
+      return 0;
+    case 5:
+#ifdef ARDUINOBMP280  
+      switch (v) {
+        case 0:
+          return 1;
+        case 1:
+          return bmp.readTemperature();
+        case 2:
+          return bmp.readPressure() / 100.0;
+        case 3:
+          return bmp.readAltitude(1013.25);
+      }       
+#endif
+      return 0;
+    case 6:
+#ifdef ARDUINOBME280
+      switch (v) {
+        case 0:
+          return 1;
+        case 1:
+          return bme.readTemperature();
+        case 2:
+          return bme.readPressure() / 100.0;
+        case 3:
+          return bme.readAltitude(1013.25);
+        case 4:
+          return bme.readHumidity();
+      }       
+#endif
+      return 0;  
     default:
       return 0;
   }
@@ -3261,8 +3396,14 @@ void spiramrawwrite(address_t a, mem_t c) {
 /* to handle strings in SPIRAM situations two more buffers are needed 
  * they store intermediate results of string operations. The buffersize 
  * limits the maximum string length indepents of how big strings are set
+ * 
+ * default is 128, on an MEGA 512 is possible
  */
+#ifdef ARDUINO_AVR_MEGA2560
+#define SPIRAMSBSIZE 512
+#else
 #define SPIRAMSBSIZE 128
+#endif
 signed char spistrbuf1[SPIRAMSBSIZE];
 signed char spistrbuf2[SPIRAMSBSIZE];
 #endif
