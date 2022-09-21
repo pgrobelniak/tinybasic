@@ -19,7 +19,7 @@
 int dspmycol = 0;
 int dspmyrow = 0;
 
-float dsp_scale = 2;
+float dsp_scale = 1;
 float dsp_offx = 0;
 float dsp_offy = 0;
 
