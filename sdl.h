@@ -55,6 +55,7 @@ const Uint8 *term_keystate;
  */
 
 int blink_thread(void *arg) {
+    /*
     SDL_Event ev;
     memset(&ev, 0, sizeof(ev));
     ev.type = term_userev;
@@ -65,6 +66,7 @@ int blink_thread(void *arg) {
             SDL_PushEvent(&ev);
         }
     }
+    */
     return 0;
 }
 
@@ -114,6 +116,7 @@ void term_clear() {
 void term_reset() {
     SDL_SetRenderDrawColor(term_renderer, 255, 255, 255, 255);
     SDL_RenderClear(term_renderer);
+    SDL_SetRenderTarget(term_renderer, term_canvas);
     term_pen.r = 0;
     term_pen.g = 0;
     term_pen.b = 0;
@@ -124,8 +127,7 @@ void term_reset() {
 
 void draw() {
     if (term_mode) return;
-    int x, y, c;
-    Pen p;
+    int x, y;
     SDL_Rect r;
     r.x = dsp_offx;
     r.y = dsp_offy;
@@ -136,6 +138,16 @@ void draw() {
     SDL_RenderClear(term_renderer);
     SDL_SetRenderDrawColor(term_renderer, term_pen.r, term_pen.g, term_pen.b, 255);
     SDL_RenderCopy(term_renderer, term_canvas, NULL, &r);
+    SDL_RenderPresent(term_renderer);
+    SDL_SetRenderTarget(term_renderer, term_canvas);
+}
+
+void redraw_text() {
+    SDL_SetRenderDrawColor(term_renderer, 255, 255, 255, 0);
+    SDL_RenderClear(term_renderer);
+    int x, y, c;
+    Pen p;
+    SDL_Rect r;
     r.w = CHAR_WIDTH*dsp_scale;
     r.h = CHAR_HEIGHT*dsp_scale;
     for(x = 0; x < dsp_columns; x++) {
@@ -144,22 +156,31 @@ void draw() {
             p = term_colors[y][x];
             if (c >= 128) c = 32;
             if(c < 128) {
-                SDL_Texture *font;
-                if (term_interactive && term_blink && x == dspmycol && y == dspmyrow) {
-                    font = term_cursor[c];
-                    SDL_SetTextureColorMod(font, term_pen.r, term_pen.g, term_pen.b);
-                } else {
-                    font = term_font[c];
-                    SDL_SetTextureColorMod(font, p.r, p.g, p.b);
-                }
+                SDL_Texture *font = term_font[c];
+                SDL_SetTextureColorMod(font, p.r, p.g, p.b);
                 r.x = dsp_offx + (x*CHAR_WIDTH*dsp_scale);
                 r.y = dsp_offy + (y*CHAR_HEIGHT*dsp_scale);
                 SDL_RenderCopy(term_renderer, font, NULL, &r);
             }
         }
     }
-    SDL_RenderPresent(term_renderer);
-    SDL_SetRenderTarget(term_renderer, term_canvas);
+    draw();
+}
+
+void draw_char(int x, int y, char c) {
+    Pen p = term_colors[y][x];
+    SDL_Rect r;
+    r.w = CHAR_WIDTH*dsp_scale;
+    r.h = CHAR_HEIGHT*dsp_scale;
+    if (c >= 128) c = 32;
+    if(c < 128) {
+        SDL_Texture *font = term_font[c];
+        SDL_SetTextureColorMod(font, p.r, p.g, p.b);
+        r.x = dsp_offx + (x*CHAR_WIDTH*dsp_scale);
+        r.y = dsp_offy + (y*CHAR_HEIGHT*dsp_scale);
+        SDL_RenderCopy(term_renderer, font, NULL, &r);
+    }
+    draw();
 }
 
 void scroll() {
@@ -287,7 +308,7 @@ int handle_control_keydown(SDL_Scancode scancode) {
         return 1;
     case SDL_SCANCODE_F12:
         term_reset();
-        draw();
+        redraw_text();
         if (!term_interactive) {
             term_lastkey = '#';
         }
@@ -379,7 +400,7 @@ void dspbegin() {
     SDL_SetWindowTitle(term_window, "Basic");
     //SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     //SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
-    term_canvas = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
+    term_canvas = SDL_CreateTexture(term_renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);    
     term_userev = SDL_RegisterEvents(1);
     SDL_CreateThread(blink_thread, "Blink", (void*)NULL);
     create_font();
@@ -390,6 +411,7 @@ void dspbegin() {
 void dspwrite(char key) {
     if (key == 12) {
         term_clear();
+        redraw_text();
     } else if (key == '\n') {
         dspmycol=0;
         dspmyrow++;
@@ -397,14 +419,16 @@ void dspwrite(char key) {
             scroll();
             dspmyrow = dsp_rows-1;
         }
+        redraw_text();
     } else if (key == '\b') {
         handle_backspace();
+        redraw_text();
     } else {
         term_chars[dspmyrow][dspmycol] = key;
         term_colors[dspmyrow][dspmycol] = term_pen;
+        draw_char(dspmycol, dspmyrow, key);
         move_cursor_right();
     }
-    draw();
 }
 
 void dspsetupdatemode(char c) {
